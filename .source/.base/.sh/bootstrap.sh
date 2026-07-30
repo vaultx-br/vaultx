@@ -110,6 +110,12 @@ fi
 [[ -f "$config_file" ]] || { echo 'config.age ausente' >&2; exit 1; }
 [[ -f "$compose_file" ]] || { echo 'Compose ausente' >&2; exit 1; }
 age -d -i /opt/vaultwarden/_secrets/age.key -o "$d/config.env" "$config_file"
+if grep -q '^SMTP_ENABLED=false$' "$d/config.env"; then
+  grep -v '^SMTP_' "$d/config.env" > "$d/config.env.tmp"
+  mv "$d/config.env.tmp" "$d/config.env"
+else
+  sed -i '/^SMTP_ENABLED=/d' "$d/config.env"
+fi
 install -o root -g root -m 600 "$d/config.env" /run/vaultwarden/config.env.tmp
 mv -f /run/vaultwarden/config.env.tmp /run/vaultwarden/config.env
 stack_dir=/opt/vaultwarden/.vws
