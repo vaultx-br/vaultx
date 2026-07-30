@@ -1,0 +1,13 @@
+# Secrets and generated artifacts
+.source/.base/.secrets/*
+!.source/.base/.secrets/config.age
+*.png
+
+# Test-only material
+.source/.test/
+
+# Local/runtime files
+.env
+*.env
+/run/
+.DS_Store

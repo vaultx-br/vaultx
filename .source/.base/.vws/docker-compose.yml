@@ -1,0 +1,48 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:1.37.1
+    restart: unless-stopped
+    env_file: /run/vaultwarden/config.env
+    volumes:
+      - vaultwarden-data:/data
+    networks: [private]
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.7.3
+    restart: unless-stopped
+    env_file: /run/vaultwarden/config.env
+    command: tunnel run --token $${CF_TUNNEL_TOKEN}
+    networks: [private]
+    depends_on: [vaultwarden]
+
+  ntfy:
+    image: binwiederhier/ntfy:v2.26.3
+    restart: unless-stopped
+    command: serve
+    volumes:
+      - ntfy-data:/var/cache/ntfy
+      - ntfy-config:/etc/ntfy
+    networks: [private]
+
+  backup-svc:
+    build:
+      context: ../.bkp
+      network: host
+    restart: unless-stopped
+    env_file: /run/vaultwarden/config.env
+    environment:
+      TZ: America/Fortaleza
+    volumes:
+      - vaultwarden-data:/data:ro
+      - backup-stage:/stage
+    networks: [private]
+    depends_on: [vaultwarden, ntfy]
+
+volumes:
+  vaultwarden-data:
+  ntfy-data:
+  ntfy-config:
+  backup-stage:
+
+networks:
+  private:
