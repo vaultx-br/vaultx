@@ -1,12 +1,21 @@
-# Secrets and generated artifacts
+# Encrypted secrets: only the deployment config is versioned
 .source/.base/.secrets/*
 !.source/.base/.secrets/config.age
 !.source/.base/.secrets/example.config.env
-*.png
+*.age
+!.source/.base/.secrets/config.age
 
-# Test-only material
+# Tests and local credentials
 .source/.test/
 .source/.base/_test/
+password.txt
+porta.txt
+
+# Generated packages and media
+*.png
+*.zip
+*.tar
+*.tar.gz
 
 # Local/runtime files
 .env
