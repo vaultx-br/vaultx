@@ -23,4 +23,8 @@ GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-vacum@localhost} \
 git commit -m 'chore: sync configuration' >/dev/null
 ask=$(mktemp /dev/shm/git-askpass.XXXXXX); trap 'rm -f "$ask"' EXIT
 printf '#!/bin/sh\ncat %q\n' "$pat" > "$ask"; chmod 700 "$ask"
-GIT_ASKPASS="$ask" GIT_TERMINAL_PROMPT=0 git push
+if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+  GIT_ASKPASS="$ask" GIT_TERMINAL_PROMPT=0 git push
+else
+  GIT_ASKPASS="$ask" GIT_TERMINAL_PROMPT=0 git push -u origin HEAD
+fi
