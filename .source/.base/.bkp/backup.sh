@@ -3,7 +3,8 @@ set -eu
 : "${NTFY_URL:?NTFY_URL missing}"
 KEEP_DAILY=${BACKUP_KEEP_DAILY:-30}
 KEEP_MONTHLY=${BACKUP_KEEP_MONTHLY:-12}
-MAX_BYTES=${BACKUP_MAX_BYTES:-4294967296}; : "${NTFY_TOPIC:?NTFY_TOPIC missing}"
+MAX_GB=${BACKUP_MAX_GB:-4}
+MAX_BYTES=$((MAX_GB * 1024 * 1024 * 1024)); : "${NTFY_TOPIC:?NTFY_TOPIC missing}"
 notify(){
   priority=$1; message=$2; shift 2
   set -- -H 'Title: Vaultwarden backup' -H "Priority: $priority"
