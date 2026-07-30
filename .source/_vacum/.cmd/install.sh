@@ -22,7 +22,7 @@ ask "Instalar em $target? [S/n] "
 command -v git >/dev/null || { $sudo apt-get -qq update; $sudo apt-get -qq install -y git; }
 [[ ! -e $target ]] || { echo "$target já existe" >&2; exit 1; }
 $sudo git clone --depth 1 "$repo" "$target"
-$sudo ln -sfn "$target/.source/.base/.vacum/.cmd/vacum" /usr/local/bin/vacum
+$sudo ln -sfn "$target/.source/_main/.bin/vacum" /usr/local/bin/vacum
 
 ask 'Caminho do genesis.age na VM (vazio para colar): '
 args=()
@@ -37,4 +37,4 @@ else
   args+=(--genesis-file "$tmp_genesis")
 fi
 say 'Iniciando bootstrap...'
-$sudo "$target/.source/.base/.vacum/.cmd/bootstrap.sh" "${args[@]}" </dev/tty
+$sudo "$target/.source/_vacum/.cmd/bootstrap.sh" "${args[@]}" </dev/tty

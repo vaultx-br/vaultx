@@ -116,7 +116,7 @@ Foi corrigido o fluxo sem `--password-file`: o Genesis agora é descriptografado
 
 ## Caminho atual
 
-A estrutura foi migrada para `.source/.base/.vacum/`. O bootstrap atual é `.source/.base/.vacum/.cmd/bootstrap.sh`; referências anteriores a `.source/bootstrap.sh` e `.source/.base/.sh/` são históricas.
+A estrutura atual é `.source/_vacum/`. O bootstrap é `.source/_vacum/.cmd/bootstrap.sh`; referências anteriores a `.source/bootstrap.sh`, `.source/.base/` e `.source/.base/.sh/` são históricas.
 
 ## Dependência SSH
 

@@ -74,6 +74,26 @@ genesis.sh
 
 `genesis.sh` permanece na raiz do projeto. O bootstrap fica em `.source/.base/.sh/` e usa caminhos relativos à nova estrutura.
 
+## Estrutura atual
+
+```text
+.source/
+├── _main/
+│   ├── .bin/vacum
+│   ├── .web/index.html
+│   └── .worker/index.js
+├── _vacum/
+│   ├── .cmd/
+│   ├── .bkp/
+│   └── docker-compose.yml
+├── _secrets/
+│   ├── config.age
+│   └── example.config.env
+└── _test/
+```
+
+Esta estrutura substitui as árvores anteriores; elas permanecem acima como registro histórico.
+
 ## Auditoria — correções aplicadas
 
 - Backup SVC agora percorre nós `RESTIC_N_*` habilitados.

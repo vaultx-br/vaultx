@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+self=$(readlink -f "$0" 2>/dev/null || :)
+case $self in
+  */.source/_main/.bin/vacum)
+    root=${self%/.source/_main/.bin/vacum}
+    exec bash "$root/.source/_vacum/.cmd/cli" "$@"
+    ;;
+esac
+url=https://raw.githubusercontent.com/vaultx-br/vaultx/master/.source/_vacum/.cmd/install.sh
+tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT HUP INT TERM
+curl -fsSL "$url" -o "$tmp" || { echo 'VACUM: instalador remoto indisponível.' >&2; exit 1; }
+exec bash "$tmp" install "$@"

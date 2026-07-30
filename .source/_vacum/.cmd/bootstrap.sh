@@ -17,9 +17,12 @@ done
 
 (( EUID == 0 )) || { echo 'execute como root' >&2; exit 1; }
 base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-config_file=${config_file:-$base/../../.secrets/config.age}
+config_file=${config_file:-$base/../../_secrets/config.age}
 compose_file=${compose_file:-$base/../docker-compose.yml}
 backup_dir=$base/../.bkp
+for f in genesis_file password_file config_file compose_file; do
+  [ -z "${!f}" ] || printf -v "$f" '%s' "$(realpath -e "${!f}")"
+done
 . /etc/os-release
 [[ ${ID:-} == ubuntu ]] || { echo 'Ubuntu necessário' >&2; exit 1; }
 
@@ -59,6 +62,7 @@ install -d -m 755 /etc/ssh/sshd_config.d
 printf 'Port 22\nPasswordAuthentication no\nPermitRootLogin no\n' \
   > /etc/ssh/sshd_config.d/vacum.conf
 sshd -t
+systemctl enable --now ssh >/dev/null
 systemctl reload ssh >/dev/null
 
 cd /opt/vaultwarden

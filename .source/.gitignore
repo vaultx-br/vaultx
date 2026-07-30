@@ -1,0 +1,24 @@
+# Encrypted secrets: only deployment config and the public example are versioned
+_secrets/*
+!_secrets/config.age
+!_secrets/example.config.env
+*.age
+!_secrets/config.age
+
+# Tests and local credentials
+_test/
+password.txt
+porta.txt
+
+# Generated packages and media
+*.png
+*.zip
+*.tar
+*.tar.gz
+
+# Local/runtime files
+.env
+*.env
+!_secrets/example.config.env
+/run/
+.DS_Store
