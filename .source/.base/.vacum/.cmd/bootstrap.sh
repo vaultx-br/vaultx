@@ -32,6 +32,7 @@ for pair in \
   git:git \
   jq:jq \
   openssl:openssl \
+  sshd:openssh-server \
   expect:expect \
   ufw:ufw \
   fail2ban:fail2ban \

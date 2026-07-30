@@ -12,6 +12,10 @@ ask(){ printf '%s' "$1" >/dev/tty; IFS= read -r REPLY </dev/tty; }
 [[ ${ID:-} == ubuntu ]] || { echo 'Ubuntu necessário' >&2; exit 1; }
 if ((EUID)); then command -v sudo >/dev/null || { echo 'sudo ausente' >&2; exit 1; }; sudo=sudo; else sudo=; fi
 
+tmp_genesis=
+cleanup(){ [ -z "$tmp_genesis" ] || rm -f "$tmp_genesis"; }
+trap cleanup EXIT HUP INT TERM
+
 say 'VACUM // INSTALL'
 ask "Instalar em $target? [S/n] "
 [[ ${REPLY:-s} =~ ^[SsYy]?$ ]] || exit 0
@@ -27,6 +31,10 @@ if [[ -n $REPLY ]]; then
   args+=(--genesis-file "$REPLY")
 else
   say 'Cole o genesis.age completo; finalize com Ctrl-D.'
+  tmp_genesis=$(mktemp "${TMPDIR:-/dev/shm}/vacum-genesis.XXXXXX")
+  chmod 600 "$tmp_genesis"
+  cat </dev/tty > "$tmp_genesis"
+  args+=(--genesis-file "$tmp_genesis")
 fi
 say 'Iniciando bootstrap...'
-exec $sudo "$target/.source/.base/.vacum/.cmd/bootstrap.sh" "${args[@]}" </dev/tty
+$sudo "$target/.source/.base/.vacum/.cmd/bootstrap.sh" "${args[@]}" </dev/tty
