@@ -4,7 +4,7 @@ self=$(realpath -e "${BASH_SOURCE[0]}")
 base=$(dirname "$self")
 cmd_dir=$base
 stack=/opt/vaultwarden/.vws/docker-compose.yml
-need_stack(){ [ -f "$stack" ] || { echo 'VACUM: nó não instalado; execute vacum install.' >&2; exit 1; }; }
+need_stack(){ sudo test -f "$stack" || { echo 'VACUM: nó não instalado; execute vacum install.' >&2; exit 1; }; }
 menu(){
   cat >&2 <<'EOF'
 
@@ -24,8 +24,15 @@ menu(){
 EOF
   printf '> ' >&2; IFS= read -r choice </dev/tty
   case $choice in
-    1) exec "$self" install;; 2) exec "$self" status;; 3) exec "$self" doctor;; 4) exec "$self" test;;
-    0) exit 0;; *) echo 'opção inválida' >&2; exit 2;;
+    0) exit 0;;
+    1|2|3|4)
+      case $choice in 1) action=install;; 2) action=status;; 3) action=doctor;; 4) action=test;; esac
+      "$self" "$action" || :
+      printf '\nPressione Enter para voltar ao menu... ' >&2
+      IFS= read -r _ </dev/tty
+      menu
+      ;;
+    *) echo 'opção inválida' >&2; menu;;
   esac
 }
 if (($# == 0)); then
