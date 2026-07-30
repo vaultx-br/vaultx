@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
-root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
+root=$(CDPATH= cd -- "$(dirname -- "$0")/../../../.." && pwd)
 pat=${1:-/run/vaultwarden/git-pat}
 cd "$root"
 git rev-parse --is-inside-work-tree >/dev/null

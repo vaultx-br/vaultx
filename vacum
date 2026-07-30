@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+url=https://raw.githubusercontent.com/vaultx-br/vaultx/master/.source/.base/.vacum/.cmd/install.sh
+tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT HUP INT TERM
+curl -fsSL "$url" -o "$tmp" || {
+  echo 'VACUM: instalador indisponível no repositório remoto.' >&2
+  echo 'Envie a versão atual antes de usar este loader.' >&2
+  exit 1
+}
+chmod 700 "$tmp"
+bash "$tmp" install "$@"

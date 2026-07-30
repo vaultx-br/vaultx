@@ -26,7 +26,7 @@ services:
 
   backup-svc:
     build:
-      context: ../.bkp
+      context: .bkp
       network: host
     restart: unless-stopped
     env_file: /run/vaultwarden/config.env

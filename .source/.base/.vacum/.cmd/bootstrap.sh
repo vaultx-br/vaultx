@@ -17,9 +17,9 @@ done
 
 (( EUID == 0 )) || { echo 'execute como root' >&2; exit 1; }
 base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-config_file=${config_file:-$base/../.secrets/config.age}
-compose_file=${compose_file:-$base/../.vws/docker-compose.yml}
-bkp_dir=${base%/.sh}/.bkp
+config_file=${config_file:-$base/../../.secrets/config.age}
+compose_file=${compose_file:-$base/../docker-compose.yml}
+backup_dir=$base/../.bkp
 . /etc/os-release
 [[ ${ID:-} == ubuntu ]] || { echo 'Ubuntu necessário' >&2; exit 1; }
 
@@ -121,9 +121,9 @@ mv -f /run/vaultwarden/config.env.tmp /run/vaultwarden/config.env
 stack_dir=/opt/vaultwarden/.vws
 install -d -m 700 "$stack_dir"
 cp "$compose_file" "$stack_dir/docker-compose.yml"
-[ -d "$bkp_dir" ] || { echo 'Backup SVC ausente' >&2; exit 1; }
-rm -rf /opt/vaultwarden/.bkp
-cp -a "$bkp_dir" /opt/vaultwarden/.bkp
+[ -d "$backup_dir" ] || { echo 'Backup SVC ausente' >&2; exit 1; }
+rm -rf "$stack_dir/.bkp"
+cp -a "$backup_dir" "$stack_dir/.bkp"
 cd "$stack_dir"
 docker compose config -q
 docker compose up -d

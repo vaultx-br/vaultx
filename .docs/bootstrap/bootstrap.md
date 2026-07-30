@@ -113,3 +113,7 @@ Teste realizado na VM Ubuntu 24.04.4 com configuração temporária: Vaultwarden
 ## Teste 2 — restauração interativa/automatizada
 
 Foi corrigido o fluxo sem `--password-file`: o Genesis agora é descriptografado em `/run/vaultwarden/restore.sh` antes da execução, evitando pipe direto `age | bash`. A VM de teste foi executada com `--password-file` e configuração temporária; `_secrets/`, `config.env`, Compose e containers foram criados com sucesso.
+
+## Caminho atual
+
+A estrutura foi migrada para `.source/.base/.vacum/`. O bootstrap atual é `.source/.base/.vacum/.cmd/bootstrap.sh`; referências anteriores a `.source/bootstrap.sh` e `.source/.base/.sh/` são históricas.
