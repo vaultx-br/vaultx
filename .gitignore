@@ -1,13 +1,16 @@
 # Secrets and generated artifacts
 .source/.base/.secrets/*
 !.source/.base/.secrets/config.age
+!.source/.base/.secrets/example.config.env
 *.png
 
 # Test-only material
 .source/.test/
+.source/.base/_test/
 
 # Local/runtime files
 .env
 *.env
+!.source/.base/.secrets/example.config.env
 /run/
 .DS_Store

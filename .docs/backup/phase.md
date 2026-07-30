@@ -82,3 +82,7 @@ genesis.sh
 - `config.env` é escrito em arquivo temporário e substituído atomicamente.
 - `restore.sh` passou a ser removido pelo trap de saída.
 - A construção padrão da imagem falhou por erro de rede do Docker ao acessar os repositórios Alpine. O build com `--network host` foi concluído; o Compose passou a usar rede host somente durante o build. A execução real do job e o R2 ainda não foram validados.
+
+## Teste 2
+
+O Bootstrap integrado foi validado na VM com artefatos temporários: Backup SVC foi construído/iniciado pelo Compose, sem credenciais reais de R2. O job real, R2, ntfy e restore continuam pendentes.

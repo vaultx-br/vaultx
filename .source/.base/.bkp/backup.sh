@@ -1,7 +1,12 @@
 #!/bin/sh
 set -eu
 : "${NTFY_URL:?NTFY_URL missing}"; : "${NTFY_TOPIC:?NTFY_TOPIC missing}"
-notify(){ curl -fsS -X POST "$NTFY_URL/$NTFY_TOPIC" -H 'Title: Vaultwarden backup' -H "Priority: $1" -d "$2" >/dev/null; }
+notify(){
+  priority=$1; message=$2; shift 2
+  set -- -H 'Title: Vaultwarden backup' -H "Priority: $priority"
+  [ -n "${NTFY_TOKEN:-}" ] && set -- "$@" -H "Authorization: Bearer $NTFY_TOKEN"
+  curl -fsS -X POST "$NTFY_URL/$NTFY_TOPIC" "$@" -d "$message" >/dev/null
+}
 fail(){ notify high "Falha: $*" || true; exit 1; }
 trap 'rm -rf /stage/*' EXIT
 rm -rf /stage/*

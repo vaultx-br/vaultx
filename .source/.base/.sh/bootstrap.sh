@@ -102,7 +102,9 @@ EXPECT
   bash /run/vaultwarden/restore.sh /opt/vaultwarden/_secrets
   rm -f /run/vaultwarden/restore.sh
 else
-  age -d genesis.age | bash -s -- /opt/vaultwarden/_secrets
+  age -d -o /run/vaultwarden/restore.sh genesis.age
+  bash /run/vaultwarden/restore.sh /opt/vaultwarden/_secrets
+  rm -f /run/vaultwarden/restore.sh
 fi
 
 [[ -f "$config_file" ]] || { echo 'config.age ausente' >&2; exit 1; }

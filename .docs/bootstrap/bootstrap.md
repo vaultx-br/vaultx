@@ -109,3 +109,7 @@ Motivo: o backup precisa de um Vaultwarden funcional e de um caminho de dados de
 O bootstrap agora restaura `config.age` usando `_secrets/age.key`, cria `/run/vaultwarden/config.env` com permissão `600`, copia o Compose para `/opt/vaultwarden`, valida a configuração e inicia os serviços.
 
 Teste realizado na VM Ubuntu 24.04.4 com configuração temporária: Vaultwarden e ntfy ficaram em execução e nenhuma porta de aplicação foi publicada. Cloudflared iniciou, mas reiniciou porque o token usado no teste era fictício; o Tunnel real ainda precisa ser validado com token válido.
+
+## Teste 2 — restauração interativa/automatizada
+
+Foi corrigido o fluxo sem `--password-file`: o Genesis agora é descriptografado em `/run/vaultwarden/restore.sh` antes da execução, evitando pipe direto `age | bash`. A VM de teste foi executada com `--password-file` e configuração temporária; `_secrets/`, `config.env`, Compose e containers foram criados com sucesso.
