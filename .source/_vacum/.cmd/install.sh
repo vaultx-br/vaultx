@@ -11,6 +11,8 @@ ask(){ printf '%s' "$1" >/dev/tty; IFS= read -r REPLY </dev/tty; }
 . /etc/os-release
 [[ ${ID:-} == ubuntu ]] || { echo 'Ubuntu necessário' >&2; exit 1; }
 if ((EUID)); then command -v sudo >/dev/null || { echo 'sudo ausente' >&2; exit 1; }; sudo=sudo; else sudo=; fi
+owner=${SUDO_USER:-$(id -un)}
+group=$(id -gn "$owner")
 
 tmp_genesis=
 cleanup(){ [ -z "$tmp_genesis" ] || rm -f "$tmp_genesis"; }
@@ -22,6 +24,7 @@ ask "Instalar em $target? [S/n] "
 command -v git >/dev/null || { $sudo apt-get -qq update; $sudo apt-get -qq install -y git; }
 [[ ! -e $target ]] || { echo "$target já existe" >&2; exit 1; }
 $sudo git clone --depth 1 "$repo" "$target"
+$sudo chown -R "$owner:$group" "$target"
 $sudo ln -sfn "$target/.source/_main/.bin/vacum" /usr/local/bin/vacum
 
 ask 'Caminho do genesis.age na VM (vazio para colar): '
