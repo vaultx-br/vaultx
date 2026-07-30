@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
-: "${NTFY_URL:?NTFY_URL missing}"; : "${NTFY_TOPIC:?NTFY_TOPIC missing}"
+: "${NTFY_URL:?NTFY_URL missing}"
+KEEP_DAILY=${BACKUP_KEEP_DAILY:-30}
+KEEP_MONTHLY=${BACKUP_KEEP_MONTHLY:-12}
+MAX_BYTES=${BACKUP_MAX_BYTES:-4294967296}; : "${NTFY_TOPIC:?NTFY_TOPIC missing}"
 notify(){
   priority=$1; message=$2; shift 2
   set -- -H 'Title: Vaultwarden backup' -H "Priority: $priority"
@@ -28,9 +31,9 @@ for n in $nodes; do
   export AWS_ACCESS_KEY_ID="$access" AWS_SECRET_ACCESS_KEY="$secret"
   if ! restic snapshots >/dev/null 2>&1; then restic init >/dev/null 2>&1 || { failed=1; continue; }; fi
   restic backup /stage --tag vaultwarden || { failed=1; continue; }
-  restic forget --keep-daily 30 --keep-monthly 12 --prune || { failed=1; continue; }
+  restic forget --keep-daily "$KEEP_DAILY" --keep-monthly "$KEEP_MONTHLY" --prune || { failed=1; continue; }
   size=$(restic stats --mode raw-data --json | jq -r '.total_size // 0')
-  [ "$size" -le 4294967296 ] || { failed=1; continue; }
+  [ "$size" -le "$MAX_BYTES" ] || { failed=1; continue; }
 done
 [ "$failed" -eq 0 ] || fail 'um ou mais nós falharam'
 notify default 'Backup concluído'

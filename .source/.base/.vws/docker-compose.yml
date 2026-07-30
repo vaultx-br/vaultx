@@ -30,8 +30,6 @@ services:
       network: host
     restart: unless-stopped
     env_file: /run/vaultwarden/config.env
-    environment:
-      TZ: America/Fortaleza
     volumes:
       - vaultwarden-data:/data:ro
       - backup-stage:/stage
