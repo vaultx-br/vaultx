@@ -245,10 +245,14 @@
     }
 
     .copy {
+      display: grid;
+      width: 2.35rem;
+      height: 2.35rem;
       flex: 0 0 auto;
-      padding: 0.42rem 0.65rem;
+      place-items: center;
+      padding: 0;
       border: 1px solid var(--border);
-      border-radius: 0.35rem;
+      border-radius: 0.45rem;
       color: var(--green);
       background: var(--green-soft);
       cursor: pointer;
@@ -485,8 +489,11 @@
           <span class="prompt">$</span>
           <div class="command-wrap">
             <code id="install-command">curl -fsSL https://vaultx.duckdns.org | sh</code>
-            <button class="copy" id="copy-button" type="button" aria-label="Copiar comando de instalação">
-              copiar comando
+            <button class="copy" id="copy-button" type="button" aria-label="Copiar comando de instalação" title="Copiar comando">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <rect x="8" y="8" width="11" height="11" rx="2"></rect>
+                <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+              </svg>
             </button>
           </div>
         </div>
@@ -557,7 +564,7 @@
     async function copyCommand() {
       try {
         await navigator.clipboard.writeText(command);
-        copyButton.textContent = "copiado";
+        copyButton.dataset.state = "copied";
       } catch {
         const selection = window.getSelection();
         const range = document.createRange();
@@ -566,11 +573,11 @@
         selection.removeAllRanges();
         selection.addRange(range);
 
-        copyButton.textContent = "selecione e copie";
+        copyButton.dataset.state = "select";
       }
 
       window.setTimeout(() => {
-        copyButton.textContent = "copiar";
+        delete copyButton.dataset.state;
       }, 1800);
     }
 
