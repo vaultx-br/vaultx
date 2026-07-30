@@ -19,10 +19,11 @@ export default {
     const base = rawBase(env.URL);
     const entry = shell ? ".source/_main/.bin/vacum" : ".source/_main/.web/index.html";
     const upstream = await fetch(`${base}/${entry}`);
-    const headers = new Headers(upstream.headers);
-    headers.set("content-type", shell ? "text/plain; charset=utf-8" : "text/html; charset=utf-8");
-    headers.set("cache-control", "no-store");
-    headers.set("vary", "User-Agent");
+    const headers = new Headers({
+      "content-type": shell ? "text/plain; charset=utf-8" : "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "vary": "User-Agent",
+    });
     return new Response(upstream.body, { status: upstream.status, headers });
   },
 };
