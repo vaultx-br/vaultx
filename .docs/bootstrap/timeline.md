@@ -65,3 +65,11 @@ Quando o Worker Cloudflare estiver publicado, o comando curto também poderá us
 ```bash
 curl -fsSL https://vacum.brazill.org/ | sh
 ```
+
+## Endpoint vigente
+
+As ocorrências da raiz acima são históricas. O endpoint implementado e validado é:
+
+```bash
+curl -fsSL https://vacum.brazill.org/install | sh
+```

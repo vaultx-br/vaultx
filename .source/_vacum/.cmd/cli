@@ -1,64 +1,132 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 self=$(realpath -e "${BASH_SOURCE[0]}")
-base=$(dirname "$self")
-cmd_dir=$base
-stack=/opt/vaultwarden/.vws/docker-compose.yml
-need_stack(){ sudo test -f "$stack" || { echo 'VACUM: nó não instalado; execute vacum install.' >&2; exit 1; }; }
+cmd_dir=$(dirname "$self")
+stack=${VACUM_STACK:-/opt/vaultwarden/.vws/docker-compose.yml}
+source_dir=${VACUM_SOURCE:-/opt/vacum-src}
+runtime=${VACUM_RUNTIME:-/run/vaultwarden/secrets}
+expected_services='vaultwarden cloudflared ntfy backup-svc'
+
+root(){ if ((EUID)); then sudo "$@"; else "$@"; fi; }
+compose(){ root docker compose -f "$stack" "$@"; }
+need_stack(){ root test -f "$stack" || { echo 'VACUM: nó não instalado; execute vacum install.' >&2; exit 1; }; }
+need_runtime(){ root test -f "$runtime/vaultwarden.env" -a -f "$runtime/cloudflared.env" -a -f "$runtime/backup.env" -a -f "$runtime/git.env" || { echo 'VACUM: secrets runtime ausentes' >&2; return 1; }; }
+check(){
+  local services service
+  root test -d "$source_dir/.git" || { echo 'VACUM: clone ausente' >&2; return 1; }
+  need_stack
+  need_runtime
+  [[ $(root stat -c '%a:%U:%G' "$runtime") == '700:root:root' ]] || { echo 'VACUM: diretório runtime inseguro' >&2; return 1; }
+  [[ $(root find "$runtime" -maxdepth 1 -type f ! -perm 600 -print -quit) == '' ]] || { echo 'VACUM: secret runtime inseguro' >&2; return 1; }
+  services=$(compose config --services)
+  for service in $expected_services; do grep -qx "$service" <<<"$services" || { echo "VACUM: serviço ausente: $service" >&2; return 1; }; done
+  echo 'VACUM: CHECK OK'
+}
+snapshots(){
+  compose exec -T backup-svc sh -eu -c '
+    nodes=$(env | sed -n "s/^RESTIC_\([0-9][0-9]*\)_REPOSITORY=.*/\1/p" | sort -n)
+    [ -n "$nodes" ]
+    for n in $nodes; do
+      get(){ printenv "RESTIC_${n}_$1" 2>/dev/null || :; }
+      [ "$(get ENABLED)" = false ] && continue
+      export RESTIC_REPOSITORY="$(get REPOSITORY)" RESTIC_PASSWORD="$(get PASSWORD)"
+      export AWS_ACCESS_KEY_ID="$(get ACCESS_KEY)" AWS_SECRET_ACCESS_KEY="$(get SECRET_KEY)"
+      name=$(get NAME); name=${name:-$n}
+      t=$(restic snapshots --latest 1 --json | jq -r ".[0].time // empty")
+      [ -n "$t" ]
+      printf "%s|%s\\n" "$name" "$t"
+    done'
+}
+show_snapshots(){
+  local n time epoch age output
+  output=$(snapshots) || return 1
+  [ -n "$output" ] || return 1
+  while IFS='|' read -r n time; do
+    epoch=$(date -d "$time" +%s) || return 1
+    age=$(( ($(date +%s) - epoch) / 3600 ))
+    printf 'Restic %s: %s (%sh)\n' "$n" "$time" "$age"
+  done <<<"$output"
+}
+status(){ need_stack; compose ps; show_snapshots; }
+running_services(){
+  local running service
+  running=$(compose ps --status running --services)
+  for service in $expected_services; do grep -qx "$service" <<<"$running" || return 1; done
+}
+disk_ok(){ [[ $(root df -Pk /opt | awk 'NR==2{print $4}') -ge ${VACUM_MIN_DISK_KB:-1048576} ]]; }
+vaultwarden_healthy(){ local id; id=$(compose ps -q vaultwarden); [[ $(root docker inspect -f '{{.State.Health.Status}}' "$id") == healthy ]]; }
+repo_clean(){ [[ -z $(git -C "$source_dir" status --porcelain) ]]; }
+ufw_active(){ root ufw status | grep -qx 'Status: active'; }
+ssh_secure(){ root sshd -T | grep -qx 'passwordauthentication no' && root sshd -T | grep -qx 'permitrootlogin no'; }
+doctor(){
+  local failed=0
+  verify(){ if "$@"; then echo "VACUM: OK: $1"; else echo "VACUM: FALHA: $1" >&2; failed=1; fi; }
+  verify check
+  verify bash -c '. /etc/os-release && [ "$ID" = ubuntu ]'
+  verify docker compose version
+  verify disk_ok
+  verify ufw_active
+  verify ssh_secure
+  verify git -C "$source_dir" remote get-url origin
+  verify git -C "$source_dir" symbolic-ref --quiet HEAD
+  verify repo_clean
+  verify compose config -q
+  verify running_services
+  verify vaultwarden_healthy
+  verify compose exec -T backup-svc sh -c 'test -x /usr/local/bin/backup; grep -q " /usr/local/bin/backup$" /etc/crontabs/root'
+  verify show_snapshots
+  ((failed == 0)) || return 1
+  echo 'VACUM: DOCTOR OK'
+}
+restore(){
+  local node=${1:?uso: vacum restore NODE [SNAPSHOT] [--yes]} snapshot=${2:-latest} container volume image answer
+  need_stack; need_runtime
+  if [[ ${3:-} != --yes ]]; then
+    printf 'Restaurar %s do nó %s em volume vazio? [y/N] ' "$snapshot" "$node" >/dev/tty
+    IFS= read -r answer </dev/tty; [[ $answer =~ ^[Yy]$ ]] || return 1
+  fi
+  container=$(compose ps -q vaultwarden); [[ -n $container ]] || { echo 'VACUM: container Vaultwarden ausente' >&2; return 1; }
+  volume=$(root docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' "$container")
+  image=$(compose images -q backup-svc); [[ -n $volume && -n $image ]] || { echo 'VACUM: volume ou imagem de backup ausente' >&2; return 1; }
+  compose stop vaultwarden
+  root docker run --rm --env-file "$runtime/backup.env" -v "$volume:/restore" --entrypoint /usr/local/bin/restore "$image" "$node" "$snapshot"
+  compose up -d vaultwarden
+}
 menu(){
   cat >&2 <<'EOF'
 
-██╗   ██╗ █████╗  ██████╗██╗   ██╗███╗   ███╗
-██║   ██║██╔══██╗██╔════╝██║   ██║████╗ ████║
-██║   ██║███████║██║     ██║   ██║██╔████╔██║
-╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║╚██╔╝██║
- ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝██║ ╚═╝ ██║
-  ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝
-
-[1] INSTALL
-[2] STATUS
-[3] DOCTOR
-[4] TEST
-
-[0] EXIT
+[1] INSTALL  [2] CHECK  [3] STATUS  [4] DOCTOR  [5] BACKUP  [6] TEST  [7] RESTORE  [8] CONFIG  [0] EXIT
 EOF
   printf '> ' >&2; IFS= read -r choice </dev/tty
   case $choice in
-    0) exit 0;;
-    1|2|3|4)
-      case $choice in 1) action=install;; 2) action=status;; 3) action=doctor;; 4) action=test;; esac
-      "$self" "$action" || :
-      printf '\nPressione Enter para voltar ao menu... ' >&2
-      IFS= read -r _ </dev/tty
-      menu
-      ;;
-    *) echo 'opção inválida' >&2; menu;;
-  esac
+    0) exit;; 1) "$self" install;; 2) "$self" check;; 3) "$self" status;; 4) "$self" doctor;; 5) "$self" backup;; 6) "$self" test;; 7) "$self" restore;; 8) "$self" config;; *) echo 'opção inválida' >&2;;
+  esac || :
+  printf '\nPressione Enter para voltar ao menu... ' >&2; IFS= read -r _ </dev/tty; menu
 }
-if (($# == 0)); then
-  [ -t 0 ] && menu
-  set -- help
-fi
+if (($# == 0)); then [ -t 0 ] && menu; set -- help; fi
 cmd=$1; shift
 case $cmd in
   install) exec "$cmd_dir/install.sh" install "$@" ;;
-  status) need_stack; sudo docker compose -f "$stack" ps ;;
-  doctor)
-    need_stack
-    command -v docker >/dev/null || { echo 'VACUM: docker ausente' >&2; exit 1; }
-    sudo test -f /run/vaultwarden/config.env || { echo 'VACUM: config runtime ausente' >&2; exit 1; }
-    sudo docker compose -f "$stack" config -q
-    sudo docker compose -f "$stack" ps --status running --quiet | grep -q . || { echo 'VACUM: nenhum serviço em execução' >&2; exit 1; }
-    echo 'VACUM: OK'
-    ;;
-  test) bash -n "$cmd_dir"/*.sh "$self"; sh -n "$cmd_dir/../.bkp"/backup "$cmd_dir/../.bkp"/entrypoint.sh; echo 'VACUM: TEST OK' ;;
+  check) check ;;
+  status) status ;;
+  doctor) doctor ;;
+  backup) need_stack; compose exec -T backup-svc /usr/local/bin/backup ;;
+  sync) need_runtime; root /usr/local/libexec/vacum-secrets-sync ;;
+  config) need_runtime; root "$cmd_dir/config.sh"; root /usr/local/libexec/vacum-secrets-sync ;;
+  restore) restore "$@" ;;
+  test) bash -n "$cmd_dir"/*.sh "$self"; sh -n "$cmd_dir/../.bkp/backup" "$cmd_dir/../.bkp/restore" "$cmd_dir/../.bkp/entrypoint.sh"; "$cmd_dir/test-cli.sh"; "$cmd_dir/test-backup.sh"; "$cmd_dir/test-restore.sh"; node "$cmd_dir/../../_main/.worker/test-worker.mjs"; echo 'VACUM: TEST OK' ;;
   help|--help|-h) cat <<'EOF'
 VACUM
   vacum install  instala o nó
-  vacum status   mostra os serviços
-  vacum doctor   valida a instalação
-  vacum test     valida scripts
+  vacum check    verifica a instalação sem rede
+  vacum status   mostra serviços e último snapshot
+  vacum doctor   diagnostica VM, Git, stack, R2 e backup
+  vacum backup   executa backup agora
+  vacum sync     sela e envia secrets.age quando alterado
+  vacum config   abre o menu interativo de configuração
+  vacum restore  restaura NODE [SNAPSHOT] em volume vazio
+  vacum test     valida desenvolvimento
 EOF
-    ;;
+  ;;
   *) echo "comando inválido: $cmd" >&2; exit 2 ;;
 esac

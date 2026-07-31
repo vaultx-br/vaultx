@@ -12,8 +12,11 @@ notify(){
   curl -fsS -X POST "$NTFY_URL/$NTFY_TOPIC" "$@" -d "$message" >/dev/null
 }
 fail(){ notify high "Falha: $*" || true; exit 1; }
-trap 'rm -rf /stage/*' EXIT
-rm -rf /stage/*
+lock=/tmp/vacum-backup.lock
+mkdir "$lock" 2>/dev/null || fail 'backup já está em execução'
+cleanup(){ find /stage -mindepth 1 -maxdepth 1 -exec rm -rf {} +; rmdir "$lock"; }
+trap cleanup EXIT HUP INT TERM
+find /stage -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 [ -f /data/db.sqlite3 ] || fail 'SQLite ausente'
 sqlite3 /data/db.sqlite3 ".backup '/stage/db.sqlite3'" || fail 'SQLite backup'
 [ -d /data/attachments ] && cp -a /data/attachments /stage/
@@ -22,19 +25,37 @@ for f in /data/rsa_key*; do [ -e "$f" ] && cp -a "$f" /stage/; done
 nodes=$(env | sed -n 's/^RESTIC_\([0-9][0-9]*\)_REPOSITORY=.*/\1/p' | sort -n)
 [ -n "$nodes" ] || fail 'nenhum nó Restic configurado'
 failed=0
+enabled=0
 for n in $nodes; do
   get(){ printenv "RESTIC_${n}_$1" 2>/dev/null || :; }
   [ "$(get ENABLED)" = false ] && continue
+  enabled=$((enabled + 1))
+  name=$(get NAME); name=${name:-$n}
   repo=$(get REPOSITORY); password=$(get PASSWORD)
   access=$(get ACCESS_KEY); secret=$(get SECRET_KEY)
   [ -n "$repo" ] && [ -n "$password" ] && [ -n "$access" ] && [ -n "$secret" ] || { failed=1; continue; }
   export RESTIC_REPOSITORY="$repo" RESTIC_PASSWORD="$password"
   export AWS_ACCESS_KEY_ID="$access" AWS_SECRET_ACCESS_KEY="$secret"
-  if ! restic snapshots >/dev/null 2>&1; then restic init >/dev/null 2>&1 || { failed=1; continue; }; fi
+  err=$(mktemp)
+  if ! restic snapshots >/dev/null 2>"$err"; then
+    if grep -Eqi 'repository does not exist|unable to open config file' "$err"; then
+      restic init >/dev/null 2>"$err" || { failed=1; rm -f "$err"; continue; }
+    else
+      failed=1; rm -f "$err"; continue
+    fi
+  fi
+  rm -f "$err"
+  size=$(restic stats --mode raw-data --json | jq -r '.total_size // 0') || { failed=1; continue; }
+  if [ "$size" -ge "$MAX_BYTES" ]; then
+    notify high "Limite de ${MAX_GB} GB atingido no nó Restic $name; backup não executado" || true
+    failed=1
+    continue
+  fi
   restic backup /stage --tag vaultwarden || { failed=1; continue; }
   restic forget --keep-daily "$KEEP_DAILY" --keep-monthly "$KEEP_MONTHLY" --prune || { failed=1; continue; }
   size=$(restic stats --mode raw-data --json | jq -r '.total_size // 0')
   [ "$size" -le "$MAX_BYTES" ] || { failed=1; continue; }
 done
+[ "$enabled" -gt 0 ] || fail 'nenhum nó Restic habilitado'
 [ "$failed" -eq 0 ] || fail 'um ou mais nós falharam'
-notify default 'Backup concluído'
+notify default 'Backup concluído' || printf '%s\n' 'Backup concluído; notificação falhou' >&2

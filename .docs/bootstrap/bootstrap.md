@@ -121,3 +121,18 @@ A estrutura atual é `.source/_vacum/`. O bootstrap é `.source/_vacum/.cmd/boot
 ## Dependência SSH
 
 O bootstrap instala `openssh-server` quando `sshd` está ausente antes de validar e recarregar a configuração SSH.
+
+## Pacote atual de secrets
+
+`secrets.age` substitui `config.age`. Ele é um `tar.gz` criptografado com age e contém arquivos separados por consumidor:
+
+```text
+backup.env
+cloudflared.env
+git.env
+vaultwarden.env
+restic/
+└── [nome].env
+```
+
+O bootstrap materializa o pacote em `/run/vaultwarden/secrets/`, diretório `700` com arquivos `600`. O Compose entrega apenas `vaultwarden.env`, `cloudflared.env` ou `backup.env` ao respectivo serviço; `git.env` permanece exclusivamente no host. Os arquivos nomeados em `restic/` são convertidos internamente para `RESTIC_N_*` em ordem lexical.

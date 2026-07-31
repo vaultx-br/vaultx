@@ -2,29 +2,24 @@
 set -Eeuo pipefail
 umask 077
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
-pat=${1:-/run/vaultwarden/git-pat}
+git_env=${1:-/run/vaultwarden/secrets/git.env}
+[[ -r $git_env ]] || { echo 'git.env ausente' >&2; exit 1; }
+get(){ sed -n "s/^$1=//p" "$git_env" | tail -1; }
+pat=$(get GIT_PAT); url=$(get GIT_URL)
+[[ -n $pat && -n $url ]] || { echo 'Git URL/PAT ausente' >&2; exit 1; }
 cd "$root"
-git rev-parse --is-inside-work-tree >/dev/null
-
-git add -A
-if git diff --cached --quiet; then exit 0; fi
-files=$(git diff --cached --name-only)
-if printf '%s\n' "$files" | grep -E '(^|/)(\.env|.*\.key|.*\.pem|genesis\.(age|png)|password\.txt)$' >/dev/null; then
-  git reset >/dev/null
-  echo 'arquivo sensível no commit' >&2
-  exit 1
+git -c safe.directory="$root" rev-parse --is-inside-work-tree >/dev/null
+git -c safe.directory="$root" remote set-url origin "$url"
+staged=$(git -c safe.directory="$root" diff --cached --name-only)
+[[ -z $staged || $staged == .source/_secrets/secrets.age ]] || { echo 'há outros arquivos staged; sync recusado' >&2; exit 1; }
+git -c safe.directory="$root" add .source/_secrets/secrets.age
+if ! git -c safe.directory="$root" diff --cached --quiet; then
+  git -c safe.directory="$root" diff --cached --check
+  GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-vacum} GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-vacum@localhost} \
+  GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-vacum} GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-vacum@localhost} \
+  git -c safe.directory="$root" commit -m 'chore: sync encrypted secrets' >/dev/null
 fi
-git diff --cached --check
-[ -r "$pat" ] || { git reset >/dev/null; echo 'PAT ausente' >&2; exit 1; }
-GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-vacum} \
-GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-vacum@localhost} \
-GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-vacum} \
-GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-vacum@localhost} \
-git commit -m 'chore: sync configuration' >/dev/null
-ask=$(mktemp /dev/shm/git-askpass.XXXXXX); trap 'rm -f "$ask"' EXIT
-printf '#!/bin/sh\ncat %q\n' "$pat" > "$ask"; chmod 700 "$ask"
-if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
-  GIT_ASKPASS="$ask" GIT_TERMINAL_PROMPT=0 git push
-else
-  GIT_ASKPASS="$ask" GIT_TERMINAL_PROMPT=0 git push -u origin HEAD
-fi
+ask=$(mktemp /dev/shm/git-askpass.XXXXXX); patfile=$(mktemp /dev/shm/git-pat.XXXXXX); trap 'rm -f "$ask" "$patfile"' EXIT
+printf %s "$pat" > "$patfile"; chmod 600 "$patfile"
+printf '#!/bin/sh\ncase $1 in *Username*) printf "%%s\\n" x-access-token;; *) cat %q;; esac\n' "$patfile" > "$ask"; chmod 700 "$ask"
+GIT_ASKPASS="$ask" GIT_TERMINAL_PROMPT=0 git -c safe.directory="$root" push

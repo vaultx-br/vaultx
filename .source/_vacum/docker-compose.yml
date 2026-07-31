@@ -2,15 +2,21 @@ services:
   vaultwarden:
     image: vaultwarden/server:1.37.1
     restart: unless-stopped
-    env_file: /run/vaultwarden/config.env
+    env_file: /run/vaultwarden/secrets/vaultwarden.env
     volumes:
       - vaultwarden-data:/data
     networks: [private]
+    healthcheck:
+      test: [CMD, curl, -f, http://localhost/alive]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   cloudflared:
     image: cloudflare/cloudflared:2026.7.3
     restart: unless-stopped
-    env_file: /run/vaultwarden/config.env
+    env_file: /run/vaultwarden/secrets/cloudflared.env
     command: tunnel run --token $${CF_TUNNEL_TOKEN}
     networks: [private]
     depends_on: [vaultwarden]
@@ -29,7 +35,7 @@ services:
       context: .bkp
       network: host
     restart: unless-stopped
-    env_file: /run/vaultwarden/config.env
+    env_file: /run/vaultwarden/secrets/backup.env
     volumes:
       - vaultwarden-data:/data:ro
       - backup-stage:/stage

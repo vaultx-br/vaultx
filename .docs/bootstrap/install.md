@@ -9,3 +9,17 @@ O Cloudflare Worker `.source/_main/.worker/index.js` serve a página em `.source
 ```bash
 curl -fsSL https://vacum.brazill.org/ | sh
 ```
+
+## Correção do endpoint canônico
+
+O Worker atual atende `/install`; use:
+
+```bash
+curl -fsSL https://vacum.brazill.org/install | sh
+```
+
+O comando anterior na raiz é histórico e retorna `404` enquanto a raiz não for explicitamente habilitada.
+
+## Menu de configuração
+
+Depois de recuperar `secrets.age`, o instalador oferece abrir `VACUM // CONFIG` antes de iniciar os serviços. O menu permite configurar Git, adicionar ou remover `restic/[nome].env`, editar retenção/agenda/limite do backup e configurar ntfy. Credenciais são lidas sem eco, arquivos são substituídos atomicamente e o pacote é selado ao salvar. Falha temporária no push não impede a instalação; o timer tentará novamente.

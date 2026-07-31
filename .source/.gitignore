@@ -1,9 +1,10 @@
 # Encrypted secrets: only deployment config and the public example are versioned
 _secrets/*
-!_secrets/config.age
-!_secrets/example.config.env
+!_secrets/secrets.age
+!_secrets/example/
+!_secrets/example/**
 *.age
-!_secrets/config.age
+!_secrets/secrets.age
 
 # Tests and local credentials
 _test/
@@ -19,6 +20,6 @@ porta.txt
 # Local/runtime files
 .env
 *.env
-!_secrets/example.config.env
+!_secrets/example/**
 /run/
 .DS_Store

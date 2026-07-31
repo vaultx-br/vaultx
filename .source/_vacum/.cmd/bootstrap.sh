@@ -3,24 +3,26 @@ set -Eeuo pipefail
 umask 077
 password_file=
 genesis_file=
-config_file=
+secrets_file=
 compose_file=
+configure=false
 while (($#)); do
   case $1 in
     --password-file) password_file=${2:?}; shift 2;;
     --genesis-file) genesis_file=${2:?}; shift 2;;
-    --config-file) config_file=${2:?}; shift 2;;
+    --secrets-file|--config-file) secrets_file=${2:?}; shift 2;;
     --compose-file) compose_file=${2:?}; shift 2;;
+    --configure) configure=true; shift;;
     *) echo "opção inválida" >&2; exit 1;;
   esac
 done
 
 (( EUID == 0 )) || { echo 'execute como root' >&2; exit 1; }
 base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-config_file=${config_file:-$base/../../_secrets/config.age}
+secrets_file=${secrets_file:-$base/../../_secrets/secrets.age}
 compose_file=${compose_file:-$base/../docker-compose.yml}
 backup_dir=$base/../.bkp
-for f in genesis_file password_file config_file compose_file; do
+for f in genesis_file password_file secrets_file compose_file; do
   [ -z "${!f}" ] || printf -v "$f" '%s' "$(realpath -e "${!f}")"
 done
 . /etc/os-release
@@ -30,11 +32,8 @@ need=()
 for pair in \
   docker:docker.io \
   age:age \
-  restic:restic \
   curl:curl \
   git:git \
-  jq:jq \
-  openssl:openssl \
   sshd:openssh-server \
   expect:expect \
   ufw:ufw \
@@ -67,7 +66,6 @@ systemctl reload ssh >/dev/null
 
 cd /opt/vaultwarden
 d=$(mktemp -d "${TMPDIR:-/dev/shm}/bootstrap.XXXXXX"); trap 'rm -rf "$d" /run/vaultwarden/restore.sh' EXIT
-[[ ! -e genesis.age ]] || { echo 'genesis.age já existe' >&2; exit 1; }
 if [[ -n "$genesis_file" ]]; then
   [[ -f "$genesis_file" ]] || { echo "genesis ausente" >&2; exit 1; }
   cp "$genesis_file" "$d/raw"
@@ -89,14 +87,14 @@ awk '
     for(i=1;i<=length(body);i+=64) print substr(body,i,64)
     print "-----END AGE ENCRYPTED FILE-----"
   }
-' "$d/raw" > genesis.age
+' "$d/raw" > "$d/genesis.age"
 if [[ -n "$password_file" ]]; then
   [[ -f "$password_file" ]] || { echo "senha ausente" >&2; exit 1; }
   mode=$(stat -c '%a' "$password_file")
   [[ "$mode" == 600 ]] || { echo "senha deve ter permissão 600" >&2; exit 1; }
-  OUTFILE=/run/vaultwarden/restore.sh PWFILE="$password_file" expect <<'EXPECT'
+  OUTFILE=/run/vaultwarden/restore.sh PWFILE="$password_file" GENESIS="$d/genesis.age" expect <<'EXPECT'
   log_user 0
-  spawn age -d -o $env(OUTFILE) genesis.age
+  spawn age -d -o $env(OUTFILE) $env(GENESIS)
   expect "Enter passphrase:"
   set f [open $env(PWFILE) r]
   set pw [read $f]
@@ -107,22 +105,66 @@ EXPECT
   bash /run/vaultwarden/restore.sh /opt/vaultwarden/_secrets
   rm -f /run/vaultwarden/restore.sh
 else
-  age -d -o /run/vaultwarden/restore.sh genesis.age
+  age -d -o /run/vaultwarden/restore.sh "$d/genesis.age"
   bash /run/vaultwarden/restore.sh /opt/vaultwarden/_secrets
   rm -f /run/vaultwarden/restore.sh
 fi
 
-[[ -f "$config_file" ]] || { echo 'config.age ausente' >&2; exit 1; }
+[[ -f "$secrets_file" ]] || { echo 'secrets.age ausente' >&2; exit 1; }
 [[ -f "$compose_file" ]] || { echo 'Compose ausente' >&2; exit 1; }
-age -d -i /opt/vaultwarden/_secrets/age.key -o "$d/config.env" "$config_file"
-if grep -q '^SMTP_ENABLED=false$' "$d/config.env"; then
-  grep -v '^SMTP_' "$d/config.env" > "$d/config.env.tmp"
-  mv "$d/config.env.tmp" "$d/config.env"
-else
-  sed -i '/^SMTP_ENABLED=/d' "$d/config.env"
+install -d -m 755 /usr/local/libexec
+install -m 755 "$base/runtime-config.sh" /usr/local/libexec/vacum-runtime-config
+install -m 755 "$base/secrets-sync.sh" /usr/local/libexec/vacum-secrets-sync
+install -m 755 "$base/git-sync.sh" /usr/local/libexec/vacum-git-sync
+cat > /etc/systemd/system/vacum-runtime-config.service <<'EOF'
+[Unit]
+Description=Materializa configuração runtime do VACUM
+After=local-fs.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/vacum-runtime-config
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+cat > /etc/systemd/system/vacum-secrets-sync.service <<'EOF'
+[Unit]
+Description=Sincroniza secrets.age do VACUM
+After=network-online.target vacum-runtime-config.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/vacum-secrets-sync
+EOF
+cat > /etc/systemd/system/vacum-secrets-sync.timer <<'EOF'
+[Unit]
+Description=Sincronização periódica do secrets.age
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable vacum-runtime-config.service vacum-secrets-sync.timer >/dev/null
+VACUM_SECRETS="$secrets_file" VACUM_SOURCE="$base/../../.." /usr/local/libexec/vacum-runtime-config
+runtime=/run/vaultwarden/secrets
+all="$runtime/vaultwarden.env $runtime/cloudflared.env $runtime/backup.env $runtime/git.env"
+grep -Eq '=(change-me|CHANGE_ME)$' $all && { echo 'configuração contém placeholder' >&2; exit 1; }
+hour=$(sed -n 's/^BACKUP_HOUR=//p' "$runtime/backup.env"); minute=$(sed -n 's/^BACKUP_MINUTE=//p' "$runtime/backup.env")
+[[ ${hour:-3} =~ ^[0-9]+$ && ${minute:-33} =~ ^[0-9]+$ && ${hour:-3} -le 23 && ${minute:-33} -le 59 ]] || { echo 'horário de backup inválido' >&2; exit 1; }
+grep -Eq '^RESTIC_[0-9]+_ENABLED=true$' "$runtime/backup.env" || { echo 'nenhum nó Restic habilitado' >&2; exit 1; }
+if [[ $configure == true ]]; then
+  VACUM_RUNTIME="$runtime" "$base/config.sh"
+  VACUM_SOURCE="$base/../../.." VACUM_STACK=/nonexistent /usr/local/libexec/vacum-secrets-sync || echo 'aviso: configuração aplicada; push Git pendente' >&2
+  grep -Eq '^RESTIC_[0-9]+_ENABLED=true$' "$runtime/backup.env" || { echo 'nenhum nó Restic habilitado' >&2; exit 1; }
 fi
-install -o root -g root -m 600 "$d/config.env" /run/vaultwarden/config.env.tmp
-mv -f /run/vaultwarden/config.env.tmp /run/vaultwarden/config.env
 stack_dir=/opt/vaultwarden/.vws
 install -d -m 700 "$stack_dir"
 cp "$compose_file" "$stack_dir/docker-compose.yml"

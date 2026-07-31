@@ -5,6 +5,7 @@
 - Backup diário às `03:33`, no fuso `America/Fortaleza`.
 - Retenção: 30 snapshots diários + 12 snapshots mensais.
 - Limite máximo total: `4 GB` por bucket/repositório.
+- Cada destino (R2, Backblaze, AWS, Oracle, Google, Internet Archive etc.) é um nó Restic independente e recebe seu próprio limite de `4 GB`; não é um limite compartilhado.
 - Primeiro destino: Cloudflare R2.
 - Nós adicionais serão configurados por índices `RESTIC_1_*`, `RESTIC_2_*` etc. dentro de `config.age`.
 - Sends ficam fora do backup.
@@ -103,6 +104,16 @@ Esta estrutura substitui as árvores anteriores; elas permanecem acima como regi
 - `restore.sh` passou a ser removido pelo trap de saída.
 - A construção padrão da imagem falhou por erro de rede do Docker ao acessar os repositórios Alpine. O build com `--network host` foi concluído; o Compose passou a usar rede host somente durante o build. A execução real do job e o R2 ainda não foram validados.
 
+## Limite por destino — 2026-07-30
+
+Antes de cada upload, o Backup SVC consulta o tamanho raw-data do repositório. Se ele já tiver `4 GB` ou mais, não envia outro backup para aquele nó, notifica via ntfy e falha o job. A checagem posterior ao upload permanece: um snapshot pode ultrapassar o teto entre a medição e o envio. Para um bloqueio físico rígido nessa situação, cada provedor deve ter quota/lifecycle configurados no bucket.
+
 ## Teste 2
 
 O Bootstrap integrado foi validado na VM com artefatos temporários: Backup SVC foi construído/iniciado pelo Compose, sem credenciais reais de R2. O job real, R2, ntfy e restore continuam pendentes.
+
+## Nós Restic nomeados e inicialização
+
+Cada destino passa a ser persistido dentro de `secrets.age` como `restic/[nome].env`, contendo `ENABLED`, `REPOSITORY`, `ACCESS_KEY`, `SECRET_KEY` e `PASSWORD`. O materializador atribui índices internos `RESTIC_N_*`, mantendo `RESTIC_N_NAME` para status e alertas.
+
+Não existe mais `RESTIC_N_INITIALIZE`. O job consulta o repositório; somente quando o Restic confirma `repository does not exist`/config ausente ele executa `restic init`. Erros de autenticação, rede ou outro tipo não inicializam nada. O comportamento foi validado com repositório Restic local inicialmente ausente, seguido de snapshot real.

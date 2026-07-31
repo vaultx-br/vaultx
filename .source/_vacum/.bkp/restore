@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+node=${1:?uso: restore NODE [SNAPSHOT]}
+snapshot=${2:-latest}
+get(){ printenv "RESTIC_${node}_$1" 2>/dev/null || :; }
+[ "$(get ENABLED)" != false ] || { echo 'nó Restic desabilitado' >&2; exit 1; }
+export RESTIC_REPOSITORY="$(get REPOSITORY)" RESTIC_PASSWORD="$(get PASSWORD)"
+export AWS_ACCESS_KEY_ID="$(get ACCESS_KEY)" AWS_SECRET_ACCESS_KEY="$(get SECRET_KEY)"
+[ -n "$RESTIC_REPOSITORY" ] && [ -n "$RESTIC_PASSWORD" ] && [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ] || { echo 'configuração Restic incompleta' >&2; exit 1; }
+[ -d /restore ] || { echo 'volume de destino ausente' >&2; exit 1; }
+[ -z "$(find /restore -mindepth 1 -maxdepth 1 -print -quit)" ] || { echo 'volume de destino não está vazio' >&2; exit 1; }
+d=$(mktemp -d /tmp/vacum-restore.XXXXXX); trap 'rm -rf "$d"' EXIT HUP INT TERM
+restic restore "$snapshot" --target "$d"
+src=$d/stage
+[ -f "$src/db.sqlite3" ] || { echo 'snapshot sem db.sqlite3' >&2; exit 1; }
+[ "$(sqlite3 "$src/db.sqlite3" 'PRAGMA integrity_check;')" = ok ] || { echo 'SQLite inválido' >&2; exit 1; }
+find "$src" -mindepth 1 -maxdepth 1 -exec cp -a {} /restore/ \;
+printf '%s\n' 'Restore concluído e SQLite validado'

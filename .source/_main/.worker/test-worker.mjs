@@ -1,0 +1,11 @@
+import fs from 'node:fs/promises';
+const source=await fs.readFile(new URL('./index.js',import.meta.url),'utf8');
+const worker=(await import(`data:text/javascript,${encodeURIComponent(source)}`)).default;
+globalThis.fetch=async url=>new Response(String(url),{status:200});
+const env={URL:'https://github.com/vaultx-br/vaultx.git'};
+const call=(path,ua='Mozilla')=>worker.fetch(new Request(`https://vacum.test${path}`,{headers:{'user-agent':ua}}),env);
+if((await call('/')).status!==404) throw new Error('raiz deve retornar 404');
+if((await call('/install')).status!==200) throw new Error('/install falhou');
+if(!(await (await call('/install/','curl')).text()).endsWith('/.source/_main/.bin/vacum')) throw new Error('loader incorreto');
+if((await worker.fetch(new Request('https://vacum.test/install'),{})).status!==500) throw new Error('URL ausente');
+console.log('worker behavior: OK');
