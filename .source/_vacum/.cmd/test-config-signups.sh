@@ -12,7 +12,7 @@ D="$d" SCRIPT="$base/config.sh" expect <<'EXPECT'
 log_user 0
 spawn env VACUM_SOURCE=$env(D) VACUM_RUNTIME=$env(D)/runtime VACUM_STACK=$env(D)/stack VACUM_DOCKER=$env(D)/bin/docker VACUM_SYSTEMCTL=$env(D)/bin/systemctl VACUM_SYSTEMD_RUN=$env(D)/bin/systemd-run LOG=$env(D)/log bash $env(SCRIPT)
 expect "VACUM // CONFIG"; send -- "8\r"
-expect "cadastros liberados por 3 minutos"
+expect "cadastro aberto; fechamento automático em 3 minutos"
 expect "VACUM // CONFIG"; send -- "0\r"
 expect eof
 catch wait result; exit [lindex $result 3]

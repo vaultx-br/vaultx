@@ -90,7 +90,7 @@ signup_session(){
   setkey "$runtime/vaultwarden.env" SIGNUPS_ALLOWED true
   if ! "${VACUM_DOCKER:-docker}" compose -f "$stack/docker-compose.yml" up -d --force-recreate vaultwarden; then setkey "$runtime/vaultwarden.env" SIGNUPS_ALLOWED false; return 1; fi
   if ! "${VACUM_SYSTEMD_RUN:-systemd-run}" --quiet --unit=vacum-signups-close --on-active=3m --setenv="VACUM_RUNTIME=$runtime" --setenv="VACUM_STACK=$stack" "$base/config.sh" --close-signups; then close_signups; return 1; fi
-  echo 'cadastros liberados por 3 minutos'
+  echo 'cadastro aberto; fechamento automático em 3 minutos'
 }
 [[ ${1:-} != --close-signups ]] || { close_signups; exit; }
 create_secrets(){
@@ -110,7 +110,7 @@ while :; do
 
 VACUM // CONFIG
 [1] Git              [4] ntfy          [7] Criar secrets.age
-[2] Adicionar S3     [5] Remover S3    [8] Cadastro por 3 min
+[2] Adicionar S3     [5] Remover S3    [8] Abrir cadastro
 [3] Política backup  [6] Criar Genesis [0] Salvar
 EOF
   ask '> '
