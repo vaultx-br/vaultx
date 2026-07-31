@@ -6,6 +6,7 @@ base=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_dir=${VACUM_SOURCE:-$(realpath -e "$base/../../..")}
 env_dir=$source_dir/.source/_env
 local_secrets=$env_dir/_secrets
+stack=${VACUM_STACK:-/opt/vaultwarden/.vws}
 need_runtime(){ [[ -d $runtime ]] || { echo 'secrets runtime ausentes' >&2; return 1; }; }
 ask(){ printf '%s' "$1" >/dev/tty; IFS= read -r REPLY </dev/tty; [[ $REPLY != *$'\n'* ]]; }
 secret(){ printf '%s' "$1" >/dev/tty; IFS= read -rs REPLY </dev/tty; printf '\n' >/dev/tty; }
@@ -76,6 +77,22 @@ create_genesis(){
   install -d -m 700 "$env_dir"
   "$base/genesis.sh" "$env_dir/genesis.age" "$local_secrets" "$env_dir/secrets.age"
 }
+close_signups(){
+  need_runtime || return
+  setkey "$runtime/vaultwarden.env" SIGNUPS_ALLOWED false
+  "${VACUM_DOCKER:-docker}" compose -f "$stack/docker-compose.yml" up -d --force-recreate vaultwarden
+  echo 'cadastros fechados'
+}
+signup_session(){
+  need_runtime || return
+  command -v "${VACUM_SYSTEMD_RUN:-systemd-run}" >/dev/null || { echo 'systemd-run ausente' >&2; return 1; }
+  "${VACUM_SYSTEMCTL:-systemctl}" is-active --quiet vacum-signups-close.timer && { echo 'sessão de cadastro já está ativa' >&2; return 1; }
+  setkey "$runtime/vaultwarden.env" SIGNUPS_ALLOWED true
+  if ! "${VACUM_DOCKER:-docker}" compose -f "$stack/docker-compose.yml" up -d --force-recreate vaultwarden; then setkey "$runtime/vaultwarden.env" SIGNUPS_ALLOWED false; return 1; fi
+  if ! "${VACUM_SYSTEMD_RUN:-systemd-run}" --quiet --unit=vacum-signups-close --on-active=3m --setenv="VACUM_RUNTIME=$runtime" --setenv="VACUM_STACK=$stack" "$base/config.sh" --close-signups; then close_signups; return 1; fi
+  echo 'cadastros liberados por 3 minutos'
+}
+[[ ${1:-} != --close-signups ]] || { close_signups; exit; }
 create_secrets(){
   local d tmp
   validate_local_secrets || return
@@ -93,9 +110,9 @@ while :; do
 
 VACUM // CONFIG
 [1] Git              [4] ntfy          [7] Criar secrets.age
-[2] Adicionar S3     [5] Remover S3    [0] Salvar
-[3] Política backup  [6] Criar Genesis
+[2] Adicionar S3     [5] Remover S3    [8] Cadastro por 3 min
+[3] Política backup  [6] Criar Genesis [0] Salvar
 EOF
   ask '> '
-  case $REPLY in 0) exit;; 1) configure_git;; 2) add_s3;; 3) backup_policy;; 4) configure_ntfy;; 5) remove_s3;; 6) create_genesis;; 7) create_secrets;; *) echo 'opção inválida' >&2;; esac || true
+  case $REPLY in 0) exit;; 1) configure_git;; 2) add_s3;; 3) backup_policy;; 4) configure_ntfy;; 5) remove_s3;; 6) create_genesis;; 7) create_secrets;; 8) signup_session;; *) echo 'opção inválida' >&2;; esac || true
 done
