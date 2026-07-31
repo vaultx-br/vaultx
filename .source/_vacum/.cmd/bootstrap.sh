@@ -39,6 +39,7 @@ for pair in \
   git:git \
   sshd:openssh-server \
   expect:expect \
+  qrencode:qrencode \
   ufw:ufw \
   fail2ban:fail2ban \
   unattended-upgrade:unattended-upgrades; do
