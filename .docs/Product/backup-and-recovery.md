@@ -114,3 +114,13 @@ Use esses números apenas como baseline histórico de um cofre pequeno. A meta o
 - Antes de promover release: teste destrutivo obrigatório com o snapshot candidato.
 - Em operação estável: teste periódico em ambiente descartável, com RTO/RPO registrados.
 - Após rotação de credencial: `doctor`, backup real e consulta do novo snapshot.
+
+## Contrato de buckets dedicados
+
+Cada destino adicionado deve ser um bucket S3 compatível, dedicado ao VACUM e inicialmente vazio. `vacum config` exige essa confirmação e normaliza o repositório para:
+
+```text
+s3:https://endpoint/bucket/vacum-vw
+```
+
+O Restic inicializa e gerencia somente esse prefixo. Não há banco ou JSON adicional: o mapeamento permanece em `restic/[nome].env`, dentro de `secrets.age`. Um repositório Restic existente no prefixo é reutilizado; o VACUM não apaga objetos arbitrários do bucket.

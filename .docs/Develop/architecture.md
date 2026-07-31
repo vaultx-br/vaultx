@@ -114,3 +114,7 @@ Uma implementação só fecha o ciclo quando prova:
 - SQLite íntegro, login funcional e anexo recuperável;
 - `check` e `doctor` aprovados depois do restore e reboot;
 - RTO e RPO observados registrados.
+
+## Mapeamento S3
+
+O próprio diretório cifrado `restic/` é o registro de destinos; não existe DB ou JSON paralelo. Cada `restic/[nome].env` guarda o endpoint S3 compatível, credenciais, senha e estado habilitado. Novos destinos usam obrigatoriamente o prefixo `/vacum-vw`, permitindo R2, GCS interoperável, B2, AWS, Oracle e gateways Azure sob o mesmo contrato Restic/S3. O bucket é declarado dedicado e vazio pelo operador; Restic gerencia o repositório, mas não remove objetos arbitrários externos ao prefixo.

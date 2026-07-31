@@ -11,6 +11,13 @@ chmod +x "$d/bin/"*
 D="$d" SCRIPT="$base/config.sh" expect <<'EXPECT'
 log_user 0
 spawn env VACUM_SOURCE=$env(D) VACUM_RUNTIME=$env(D)/runtime VACUM_STACK=$env(D)/stack VACUM_DOCKER=$env(D)/bin/docker VACUM_SYSTEMCTL=$env(D)/bin/systemctl VACUM_SYSTEMD_RUN=$env(D)/bin/systemd-run LOG=$env(D)/log bash $env(SCRIPT)
+expect "VACUM // CONFIG"; send -- "2\r"
+expect "Nome do nó"; send -- "r2\r"
+expect "Restic repository"; send -- "s3:https://s3.example.test/vaultwarden\r"
+expect "Confirmar bucket dedicado"; send -- "y\r"
+expect "Access key"; send -- "access\r"
+expect "Secret key"; send -- "secret\r"
+expect "Senha Restic"; send -- "password\r"
 expect "VACUM // CONFIG"; send -- "8\r"
 expect "cadastro aberto; fechamento automático em 3 minutos"
 expect "VACUM // CONFIG"; send -- "0\r"
@@ -18,6 +25,7 @@ expect eof
 catch wait result; exit [lindex $result 3]
 EXPECT
 grep -qx 'SIGNUPS_ALLOWED=true' "$d/runtime/vaultwarden.env"
+grep -qx 'REPOSITORY=s3:https://s3.example.test/vaultwarden/vacum-vw' "$d/runtime/restic/r2.env"
 grep -q -- '--on-active=3m' "$d/log"
 env VACUM_SOURCE="$d" VACUM_RUNTIME="$d/runtime" VACUM_STACK="$d/stack" VACUM_DOCKER="$d/bin/docker" LOG="$d/log" bash "$base/config.sh" --close-signups >/dev/null
 grep -qx 'SIGNUPS_ALLOWED=false' "$d/runtime/vaultwarden.env"

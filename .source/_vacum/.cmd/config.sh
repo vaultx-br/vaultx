@@ -29,7 +29,9 @@ add_s3(){
   need_runtime || return
   ask 'Nome do nó (ex.: r2, oracle): '; [[ $REPLY =~ ^[A-Za-z0-9_-]+$ ]] || { echo 'nome inválido' >&2; return 1; }; local name=$REPLY file=$runtime/restic/$REPLY.env
   [[ ! -e $file ]] || { echo 'nó já existe' >&2; return 1; }
-  ask 'Restic repository (s3:https://...): '; [[ $REPLY == s3:https://* ]] || { echo 'repositório deve usar s3:https://' >&2; return 1; }; local repo=$REPLY
+  ask 'Restic repository (s3:https://endpoint/bucket): '; [[ $REPLY == s3:https://* ]] || { echo 'repositório deve usar s3:https://' >&2; return 1; }; local repo=${REPLY%/}
+  [[ $repo == */vacum-vw ]] || repo=$repo/vacum-vw
+  ask 'Confirmar bucket dedicado ao VACUM e inicialmente vazio? [y/N] '; [[ $REPLY =~ ^[Yy]$ ]] || { echo 'destino cancelado' >&2; return 1; }
   secret 'Access key: '; local access=$REPLY; secret 'Secret key: '; local secret_key=$REPLY; secret 'Senha Restic: '; local password=$REPLY
   [[ -n $access && -n $secret_key && -n $password ]] || { echo 'credencial vazia' >&2; return 1; }
   install -d -m 700 "$runtime/restic"
