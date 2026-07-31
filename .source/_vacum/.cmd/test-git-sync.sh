@@ -12,6 +12,9 @@ mv "$remote" "$remote.off"; printf changed > "$repo/.source/_env/secrets.age"
 if VACUM_SOURCE="$repo" "$script" "$d/git.env" >/dev/null 2>&1; then echo 'push ausente deveria falhar' >&2; exit 1; fi
 [[ $(git -C "$repo" show --pretty= --name-only HEAD) == .source/_env/secrets.age ]]
 mv "$remote.off" "$remote"
+git clone -q "$remote" "$d/other"; git -C "$d/other" config user.name other; git -C "$d/other" config user.email other@localhost
+printf remote > "$d/other/README"; git -C "$d/other" add README; git -C "$d/other" commit -qm remote; git -C "$d/other" push -q
 VACUM_SOURCE="$repo" "$script" "$d/git.env" >/dev/null
 [[ $(git --git-dir="$remote" rev-parse HEAD) == $(git -C "$repo" rev-parse HEAD) ]]
+[[ $(cat "$repo/README") == remote ]]
 echo 'git sync behavior: OK'

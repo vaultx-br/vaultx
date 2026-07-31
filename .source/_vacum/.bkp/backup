@@ -52,7 +52,7 @@ for n in $nodes; do
     continue
   fi
   restic backup /stage --tag vaultwarden || { failed=1; continue; }
-  restic forget --keep-daily "$KEEP_DAILY" --keep-monthly "$KEEP_MONTHLY" --prune || { failed=1; continue; }
+  restic forget --group-by paths,tags --keep-daily "$KEEP_DAILY" --keep-monthly "$KEEP_MONTHLY" --prune || { failed=1; continue; }
   size=$(restic stats --mode raw-data --json | jq -r '.total_size // 0')
   [ "$size" -le "$MAX_BYTES" ] || { failed=1; continue; }
 done

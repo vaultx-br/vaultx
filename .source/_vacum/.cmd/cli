@@ -107,11 +107,11 @@ menu(){
 
 [1] INSTALL    [4] DOCTOR    [7] RESTORE
 [2] CHECK      [5] BACKUP    [8] CONFIG
-[3] STATUS     [6] TEST      [0] EXIT
+[3] STATUS     [6] TEST      [9] SYNC      [0] EXIT
 EOF
   printf '> ' >&2; IFS= read -r choice </dev/tty
   case $choice in
-    0) exit;; 1) "$self" install;; 2) "$self" check;; 3) "$self" status;; 4) "$self" doctor;; 5) "$self" backup;; 6) "$self" test;; 7) "$self" restore;; 8) "$self" config;; *) echo 'opção inválida' >&2;;
+    0) exit;; 1) "$self" install;; 2) "$self" check;; 3) "$self" status;; 4) "$self" doctor;; 5) "$self" backup;; 6) "$self" test;; 7) "$self" restore;; 8) "$self" config;; 9) "$self" sync;; *) echo 'opção inválida' >&2;;
   esac || :
   printf '\nPressione Enter para voltar ao menu... ' >&2; IFS= read -r _ </dev/tty; menu
 }
@@ -123,21 +123,23 @@ case $cmd in
   status) status ;;
   doctor) doctor ;;
   backup) need_stack; compose exec -T backup-svc /usr/local/bin/backup ;;
-  sync) need_runtime; root /usr/local/libexec/vacum-secrets-sync ;;
+  sync) need_runtime; root "$cmd_dir/sync-source.sh" ;;
+  seal) need_runtime; root /usr/local/libexec/vacum-secrets-sync ;;
   config)
     if root test -d "$runtime"; then root "$cmd_dir/config.sh"; root /usr/local/libexec/vacum-secrets-sync
     else "$cmd_dir/config.sh"
     fi
     ;;
   restore) restore "$@" ;;
-  test) bash -n "$cmd_dir"/*.sh "$self"; sh -n "$cmd_dir/../.bkp/backup" "$cmd_dir/../.bkp/restore" "$cmd_dir/../.bkp/entrypoint.sh"; "$cmd_dir/test-cli.sh"; "$cmd_dir/test-backup.sh"; "$cmd_dir/test-restore.sh"; "$cmd_dir/test-genesis.sh"; "$cmd_dir/test-config-signups.sh"; node "$cmd_dir/../../_main/.cloudflare/test-worker.mjs"; echo 'VACUM: TEST OK' ;;
+  test) bash -n "$cmd_dir"/*.sh "$self"; sh -n "$cmd_dir/../.bkp/backup" "$cmd_dir/../.bkp/restore" "$cmd_dir/../.bkp/entrypoint.sh"; "$cmd_dir/test-cli.sh"; "$cmd_dir/test-backup.sh"; "$cmd_dir/test-restore.sh"; "$cmd_dir/test-genesis.sh"; "$cmd_dir/test-config-signups.sh"; "$cmd_dir/test-sync-source.sh"; node "$cmd_dir/../../_main/.cloudflare/test-worker.mjs"; echo 'VACUM: TEST OK' ;;
   help|--help|-h) banner; cat <<'EOF'
   vacum install  instala o nó
   vacum check    verifica a instalação sem rede
   vacum status   mostra serviços e último snapshot
   vacum doctor   diagnostica VM, Git, stack, R2 e backup
   vacum backup   executa backup agora
-  vacum sync     sela e envia secrets.age quando alterado
+  vacum sync     alinha source/serviços ao origin/master
+  vacum seal     sela e envia secrets.age quando alterado
   vacum config   abre o menu interativo de configuração
   vacum restore  restaura NODE [SNAPSHOT] em volume vazio
   vacum test     valida desenvolvimento

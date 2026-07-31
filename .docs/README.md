@@ -1,34 +1,40 @@
-# Documentação VACUM
+# Documentação oficial VACUM
 
-A documentação é separada pela responsabilidade de cada conteúdo:
+Toda a documentação vigente está organizada por público em apenas duas áreas:
 
 ```text
 .docs/
-├── architecture/  # contexto, objetivos e decisões estruturais
-├── installation/  # instalação, bootstrap e ensaios de instalação
-├── operations/    # comandos e rotinas executadas no ambiente
-├── planning/      # trabalho futuro, critérios de aceite e prioridades
-└── audits/        # análises datadas; evidência histórica, não runbook
+├── Develop/  # source, arquitetura, pipelines, decisões, segurança e testes
+└── Product/  # instalação, uso, operação, backup, recuperação e release
 ```
 
-## Fontes por responsabilidade
+## Para desenvolver
 
-| Necessidade | Documento |
+Acesse [`Develop/README.md`](Develop/README.md).
+
+| Tema | Documento |
 |---|---|
-| Entender o objetivo original | [`architecture/original-brief.md`](architecture/original-brief.md) |
-| Instalar um nó | [`installation/install.md`](installation/install.md) |
-| Entender o bootstrap | [`installation/bootstrap.md`](installation/bootstrap.md) |
-| Operar a CLI | [`operations/commands.md`](operations/commands.md) |
-| Operar backups | [`operations/backup.md`](operations/backup.md) |
-| Operar sincronização Git | [`operations/git-sync.md`](operations/git-sync.md) |
-| Executar o fechamento pré-produção | [`planning/pre-production.md`](planning/pre-production.md) |
-| Preparar e promover uma release | [`planning/release.md`](planning/release.md) |
-| Consultar decisões e achados anteriores | [`audits/`](audits/) |
+| Arquitetura e contratos | [`Develop/architecture.md`](Develop/architecture.md) |
+| Pipelines internas | [`Develop/pipeline.md`](Develop/pipeline.md) |
+| Decisões positivas, negativas e substituídas | [`Develop/decisions.md`](Develop/decisions.md) |
+| Segurança e testes | [`Develop/security-and-tests.md`](Develop/security-and-tests.md) |
+
+## Para usar e operar
+
+Acesse [`Product/README.md`](Product/README.md).
+
+| Tema | Documento |
+|---|---|
+| Instalação | [`Product/installation.md`](Product/installation.md) |
+| Comandos e rotina | [`Product/operations.md`](Product/operations.md) |
+| Backup e recuperação | [`Product/backup-and-recovery.md`](Product/backup-and-recovery.md) |
+| Release e rollback | [`Product/release.md`](Product/release.md) |
 
 ## Regras de manutenção
 
-- Um documento pertence à pasta de quem o usa, não à fase em que foi criado.
-- Instrução operacional vigente fica em `operations/` ou `installation/`.
-- Trabalho ainda não confirmado fica em `planning/`.
-- Auditorias são imutáveis e recebem data no nome quando forem periódicas.
-- Evite repetir a mesma instrução: mantenha uma fonte principal e use links nas demais.
+- Novo conteúdo técnico pertence a `Develop/`.
+- Instrução para usuário ou operador pertence a `Product/`.
+- Decisão substituída é marcada como histórica dentro de `Develop/decisions.md`, não mantida como runbook paralelo.
+- Não duplicar instruções: escolha uma fonte principal e use links.
+- Nunca documentar valores reais de ambiente, tokens, senhas, chaves, bancos ou anexos.
+- Código e testes em `.source/` são a verdade final quando houver divergência.

@@ -22,4 +22,14 @@ fi
 ask=$(mktemp /dev/shm/git-askpass.XXXXXX); patfile=$(mktemp /dev/shm/git-pat.XXXXXX); trap 'rm -f "$ask" "$patfile"' EXIT
 printf %s "$pat" > "$patfile"; chmod 600 "$patfile"
 printf '#!/bin/sh\ncase $1 in *Username*) printf "%%s\\n" x-access-token;; *) cat %q;; esac\n' "$patfile" > "$ask"; chmod 700 "$ask"
-GIT_ASKPASS="$ask" GIT_TERMINAL_PROMPT=0 git -c safe.directory="$root" push
+export GIT_ASKPASS="$ask" GIT_TERMINAL_PROMPT=0
+branch=$(git -c safe.directory="$root" symbolic-ref --short HEAD)
+git -c safe.directory="$root" fetch origin "$branch"
+if ! git -c safe.directory="$root" merge-base --is-ancestor "origin/$branch" HEAD; then
+  if ! GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-vacum} GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-vacum@localhost} GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-vacum} GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-vacum@localhost} git -c safe.directory="$root" rebase "origin/$branch"; then
+    git -c safe.directory="$root" rebase --abort || true
+    exit 1
+  fi
+fi
+git -c safe.directory="$root" branch --set-upstream-to="origin/$branch" "$branch" >/dev/null
+git -c safe.directory="$root" push
