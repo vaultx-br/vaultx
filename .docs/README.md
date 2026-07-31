@@ -22,6 +22,7 @@ A documentação é separada pela responsabilidade de cada conteúdo:
 | Operar backups | [`operations/backup.md`](operations/backup.md) |
 | Operar sincronização Git | [`operations/git-sync.md`](operations/git-sync.md) |
 | Executar o fechamento pré-produção | [`planning/pre-production.md`](planning/pre-production.md) |
+| Preparar e promover uma release | [`planning/release.md`](planning/release.md) |
 | Consultar decisões e achados anteriores | [`audits/`](audits/) |
 
 ## Regras de manutenção

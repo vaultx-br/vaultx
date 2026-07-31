@@ -42,8 +42,8 @@ Restaura `latest` ou o snapshot informado somente quando o volume do Vaultwarden
 
 ## `vacum sync`
 
-Sela os arquivos em `/run/vaultwarden/secrets/` como `.source/_secrets/secrets.age` e chama o sincronizador Git. Se o conteúdo não mudou, não cria commit, mas ainda tenta enviar eventual commit pendente. O timer executa o mesmo fluxo automaticamente a cada cinco minutos.
+Sela os arquivos em `/run/vaultwarden/secrets/` como `.source/_env/secrets.age` e chama o sincronizador Git. Se o conteúdo não mudou, não cria commit, mas ainda tenta enviar eventual commit pendente. O timer executa o mesmo fluxo automaticamente a cada cinco minutos.
 
 ## `vacum config`
 
-Abre o mesmo menu interativo do instalador para Git, nós S3 nomeados, política de backup e ntfy. Ao salvar, executa imediatamente o fluxo de `vacum sync` e aplica a nova configuração aos serviços.
+Abre o menu interativo para Git, nós S3 nomeados, política de backup e ntfy. Antes da instalação, também cria `.source/_env/genesis.age` com senha digitada diretamente pelo `age`, sem eco nem arquivo de senha, e opcionalmente sela `.source/_env/_secrets/` como `.source/_env/secrets.age`. O Genesis e o pacote cifrado são versionáveis; o QR PNG e os secrets plaintext permanecem locais. Em um nó instalado, salvar executa `vacum sync` e aplica a configuração aos serviços.

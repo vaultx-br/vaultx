@@ -7,7 +7,7 @@ source_dir=${VACUM_SOURCE:-/opt/vacum-src}
 runtime=${VACUM_RUNTIME:-/run/vaultwarden/secrets}
 expected_services='vaultwarden cloudflared ntfy backup-svc'
 
-banner(){ cat <<'EOF'
+banner(){ printf '\n'; cat <<'EOF'
 ██╗   ██╗ █████╗  ██████╗██╗   ██╗███╗   ███╗
 ██║   ██║██╔══██╗██╔════╝██║   ██║████╗ ████║
 ██║   ██║███████║██║     ██║   ██║██╔████╔██║
@@ -124,9 +124,13 @@ case $cmd in
   doctor) doctor ;;
   backup) need_stack; compose exec -T backup-svc /usr/local/bin/backup ;;
   sync) need_runtime; root /usr/local/libexec/vacum-secrets-sync ;;
-  config) need_runtime; root "$cmd_dir/config.sh"; root /usr/local/libexec/vacum-secrets-sync ;;
+  config)
+    if root test -d "$runtime"; then root "$cmd_dir/config.sh"; root /usr/local/libexec/vacum-secrets-sync
+    else "$cmd_dir/config.sh"
+    fi
+    ;;
   restore) restore "$@" ;;
-  test) bash -n "$cmd_dir"/*.sh "$self"; sh -n "$cmd_dir/../.bkp/backup" "$cmd_dir/../.bkp/restore" "$cmd_dir/../.bkp/entrypoint.sh"; "$cmd_dir/test-cli.sh"; "$cmd_dir/test-backup.sh"; "$cmd_dir/test-restore.sh"; node "$cmd_dir/../../_main/.worker/test-worker.mjs"; echo 'VACUM: TEST OK' ;;
+  test) bash -n "$cmd_dir"/*.sh "$self"; sh -n "$cmd_dir/../.bkp/backup" "$cmd_dir/../.bkp/restore" "$cmd_dir/../.bkp/entrypoint.sh"; "$cmd_dir/test-cli.sh"; "$cmd_dir/test-backup.sh"; "$cmd_dir/test-restore.sh"; "$cmd_dir/test-genesis.sh"; node "$cmd_dir/../../_main/.cloudflare/test-worker.mjs"; echo 'VACUM: TEST OK' ;;
   help|--help|-h) banner; cat <<'EOF'
   vacum install  instala o nó
   vacum check    verifica a instalação sem rede

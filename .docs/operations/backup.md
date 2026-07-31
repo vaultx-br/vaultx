@@ -7,7 +7,7 @@
 - Limite máximo total: `4 GB` por bucket/repositório.
 - Cada destino (R2, Backblaze, AWS, Oracle, Google, Internet Archive etc.) é um nó Restic independente e recebe seu próprio limite de `4 GB`; não é um limite compartilhado.
 - Primeiro destino: Cloudflare R2.
-- Nós adicionais serão configurados por índices `RESTIC_1_*`, `RESTIC_2_*` etc. dentro de `config.age`.
+- Nós adicionais são armazenados como `_env/_secrets/restic/[nome].env` e materializados como índices internos `RESTIC_N_*` dentro de `secrets.age`.
 - Sends ficam fora do backup.
 - Falhas, sucesso e limite atingido gerarão notificações via ntfy.
 

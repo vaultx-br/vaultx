@@ -11,8 +11,8 @@ cd "$root"
 git -c safe.directory="$root" rev-parse --is-inside-work-tree >/dev/null
 git -c safe.directory="$root" remote set-url origin "$url"
 staged=$(git -c safe.directory="$root" diff --cached --name-only)
-[[ -z $staged || $staged == .source/_secrets/secrets.age ]] || { echo 'há outros arquivos staged; sync recusado' >&2; exit 1; }
-git -c safe.directory="$root" add .source/_secrets/secrets.age
+[[ -z $staged || $staged == .source/_env/secrets.age ]] || { echo 'há outros arquivos staged; sync recusado' >&2; exit 1; }
+git -c safe.directory="$root" add .source/_env/secrets.age
 if ! git -c safe.directory="$root" diff --cached --quiet; then
   git -c safe.directory="$root" diff --cached --check
   GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-vacum} GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-vacum@localhost} \

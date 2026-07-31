@@ -20,7 +20,7 @@ done
 (( EUID == 0 )) || { echo 'execute como root' >&2; exit 1; }
 base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 source_dir=$(realpath -e "$base/../../..")
-secrets_file=${secrets_file:-$base/../../_secrets/secrets.age}
+secrets_file=${secrets_file:-$base/../../_env/secrets.age}
 compose_file=${compose_file:-$base/../docker-compose.yml}
 backup_dir=$base/../.bkp
 for f in genesis_file password_file secrets_file compose_file; do

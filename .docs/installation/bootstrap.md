@@ -136,3 +136,14 @@ restic/
 ```
 
 O bootstrap materializa o pacote em `/run/vaultwarden/secrets/`, diretório `700` com arquivos `600`. O Compose entrega apenas `vaultwarden.env`, `cloudflared.env` ou `backup.env` ao respectivo serviço; `git.env` permanece exclusivamente no host. Os arquivos nomeados em `restic/` são convertidos internamente para `RESTIC_N_*` em ordem lexical.
+
+## Estado canônico para release
+
+As seções anteriores preservam a evolução histórica. O fluxo vigente usa:
+
+```text
+.source/_env/genesis.age  → recupera age.key/age.pub
+.source/_env/secrets.age  → materializa /run/vaultwarden/secrets/
+```
+
+A origem plaintext local é `.source/_env/_secrets/`; exemplos públicos ficam em `.source/_env/_sample/`. Genesis e pacote cifrado podem ser criados antes da instalação por `vacum config`. A senha é lida diretamente pelo `age`, sem eco e sem arquivo persistente. O serviço `vacum-runtime-config` guarda os caminhos usados pela instalação e rematerializa `/run` a cada boot antes do Docker.

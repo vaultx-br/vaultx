@@ -2,7 +2,11 @@
 set -Eeuo pipefail
 umask 077
 runtime=${VACUM_RUNTIME:-/run/vaultwarden/secrets}
-[[ -d $runtime ]] || { echo 'secrets runtime ausentes' >&2; exit 1; }
+base=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+source_dir=${VACUM_SOURCE:-$(realpath -e "$base/../../..")}
+env_dir=$source_dir/.source/_env
+local_secrets=$env_dir/_secrets
+need_runtime(){ [[ -d $runtime ]] || { echo 'secrets runtime ausentes' >&2; return 1; }; }
 ask(){ printf '%s' "$1" >/dev/tty; IFS= read -r REPLY </dev/tty; [[ $REPLY != *$'\n'* ]]; }
 secret(){ printf '%s' "$1" >/dev/tty; IFS= read -rs REPLY </dev/tty; printf '\n' >/dev/tty; }
 setkey(){
@@ -15,11 +19,13 @@ setkey(){
   chmod 600 "$tmp"; mv -f "$tmp" "$file"
 }
 configure_git(){
+  need_runtime || return
   ask 'Git URL HTTPS: '; [[ $REPLY == https://* ]] || { echo 'URL Git deve usar HTTPS' >&2; return 1; }; local url=$REPLY
   secret 'Git PAT fine-grained: '; [[ -n $REPLY ]] || return 1; local pat=$REPLY
   setkey "$runtime/git.env" GIT_URL "$url"; setkey "$runtime/git.env" GIT_PAT "$pat"
 }
 add_s3(){
+  need_runtime || return
   ask 'Nome do nó (ex.: r2, oracle): '; [[ $REPLY =~ ^[A-Za-z0-9_-]+$ ]] || { echo 'nome inválido' >&2; return 1; }; local name=$REPLY file=$runtime/restic/$REPLY.env
   [[ ! -e $file ]] || { echo 'nó já existe' >&2; return 1; }
   ask 'Restic repository (s3:https://...): '; [[ $REPLY == s3:https://* ]] || { echo 'repositório deve usar s3:https://' >&2; return 1; }; local repo=$REPLY
@@ -30,6 +36,7 @@ add_s3(){
   chmod 600 "$file"
 }
 backup_policy(){
+  need_runtime || return
   local key label default
   while IFS='|' read -r key label default; do
     ask "$label [$default]: "; value=${REPLY:-$default}
@@ -47,22 +54,48 @@ BACKUP_MAX_GB|Limite GB|4
 EOF
 }
 configure_ntfy(){
+  need_runtime || return
   ask 'ntfy URL: '; setkey "$runtime/backup.env" NTFY_URL "$REPLY"
   ask 'ntfy tópico: '; setkey "$runtime/backup.env" NTFY_TOPIC "$REPLY"
   secret 'ntfy token (vazio = sem autenticação): '; setkey "$runtime/backup.env" NTFY_TOKEN "$REPLY"
 }
 remove_s3(){
+  need_runtime || return
   printf 'Nós: ' >/dev/tty; find "$runtime/restic" -maxdepth 1 -type f -name '*.env' -printf '%f ' | sed 's/\.env//g' >/dev/tty; printf '\n' >/dev/tty
   ask 'Nome para remover: '; [[ $REPLY =~ ^[A-Za-z0-9_-]+$ && -f $runtime/restic/$REPLY.env ]] || { echo 'nó ausente' >&2; return 1; }; local name=$REPLY
   ask "Confirmar remoção de $name? [y/N] "; [[ $REPLY =~ ^[Yy]$ ]] || return 0
   rm -f "$runtime/restic/${name}.env"
 }
+validate_local_secrets(){
+  local f
+  for f in backup.env cloudflared.env git.env vaultwarden.env; do [[ -f $local_secrets/$f ]] || { echo "secret ausente: $f" >&2; return 1; }; done
+  find "$local_secrets/restic" -maxdepth 1 -type f -name '*.env' -print -quit 2>/dev/null | grep -q . || { echo 'nenhum nó Restic' >&2; return 1; }
+}
+create_genesis(){
+  validate_local_secrets || return
+  install -d -m 700 "$env_dir"
+  "$base/genesis.sh" "$env_dir/genesis.age" "$local_secrets" "$env_dir/secrets.age"
+}
+create_secrets(){
+  local d tmp
+  validate_local_secrets || return
+  [[ -f $env_dir/genesis.age ]] || { echo 'Genesis ausente; crie-o primeiro' >&2; return 1; }
+  d=$(mktemp -d "${TMPDIR:-/dev/shm}/vacum-seal.XXXXXX")
+  if ! age -d -o "$d/restore.sh" "$env_dir/genesis.age"; then rm -rf "$d"; return 1; fi
+  sh "$d/restore.sh" "$d/key"
+  tmp=$(mktemp "$env_dir/secrets.age.XXXXXX")
+  if ! tar -czf - -C "$local_secrets" backup.env cloudflared.env git.env vaultwarden.env restic | age -r "$(cat "$d/key/age.pub")" -o "$tmp"; then rm -rf "$d" "$tmp"; return 1; fi
+  chmod 600 "$tmp"; mv -f "$tmp" "$env_dir/secrets.age"; rm -rf "$d"
+  echo 'secrets.age criado'
+}
 while :; do
   cat >/dev/tty <<'EOF'
 
 VACUM // CONFIG
-[1] Git  [2] Adicionar S3  [3] Política de backup  [4] ntfy  [5] Remover S3  [0] Salvar
+[1] Git              [4] ntfy          [7] Criar secrets.age
+[2] Adicionar S3     [5] Remover S3    [0] Salvar
+[3] Política backup  [6] Criar Genesis
 EOF
   ask '> '
-  case $REPLY in 0) exit;; 1) configure_git;; 2) add_s3;; 3) backup_policy;; 4) configure_ntfy;; 5) remove_s3;; *) echo 'opção inválida' >&2;; esac || true
+  case $REPLY in 0) exit;; 1) configure_git;; 2) add_s3;; 3) backup_policy;; 4) configure_ntfy;; 5) remove_s3;; 6) create_genesis;; 7) create_secrets;; *) echo 'opção inválida' >&2;; esac || true
 done

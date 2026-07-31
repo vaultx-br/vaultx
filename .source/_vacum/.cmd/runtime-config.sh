@@ -4,7 +4,7 @@ umask 077
 source_dir=${VACUM_SOURCE:-/opt/vacum-src}
 state_dir=${VACUM_STATE:-/opt/vaultwarden}
 runtime=${VACUM_RUNTIME:-/run/vaultwarden/secrets}
-secrets=${VACUM_SECRETS:-$source_dir/.source/_secrets/secrets.age}
+secrets=${VACUM_SECRETS:-$source_dir/.source/_env/secrets.age}
 d=$(mktemp -d "${TMPDIR:-/dev/shm}/vacum-secrets.XXXXXX"); trap 'rm -rf "$d"' EXIT
 age -d -i "$state_dir/_secrets/age.key" "$secrets" | tar -xzf - -C "$d"
 for f in backup.env cloudflared.env git.env vaultwarden.env; do [[ -f $d/$f ]] || { echo "secret ausente: $f" >&2; exit 1; }; done

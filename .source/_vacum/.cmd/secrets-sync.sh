@@ -4,10 +4,10 @@ umask 077
 source_dir=${VACUM_SOURCE:-/opt/vacum-src}
 state_dir=${VACUM_STATE:-/opt/vaultwarden}
 runtime=${VACUM_RUNTIME:-/run/vaultwarden/secrets}
-out=$source_dir/.source/_secrets/secrets.age
+out=$source_dir/.source/_env/secrets.age
 for f in backup.env cloudflared.env git.env vaultwarden.env; do [[ -f $runtime/$f ]] || { echo "secret ausente: $f" >&2; exit 1; }; done
 find "$runtime/restic" -maxdepth 1 -type f -name '*.env' -print -quit | grep -q . || { echo 'nenhum nó Restic' >&2; exit 1; }
-pkg=$(mktemp -d "${TMPDIR:-/dev/shm}/vacum-secrets-new.XXXXXX"); old=$(mktemp -d "${TMPDIR:-/dev/shm}/vacum-secrets-old.XXXXXX"); tmp=$(mktemp "$source_dir/.source/_secrets/secrets.age.XXXXXX"); trap 'rm -rf "$pkg" "$old"; rm -f "$tmp"' EXIT
+pkg=$(mktemp -d "${TMPDIR:-/dev/shm}/vacum-secrets-new.XXXXXX"); old=$(mktemp -d "${TMPDIR:-/dev/shm}/vacum-secrets-old.XXXXXX"); tmp=$(mktemp "$source_dir/.source/_env/secrets.age.XXXXXX"); trap 'rm -rf "$pkg" "$old"; rm -f "$tmp"' EXIT
 install -d -m 700 "$pkg/restic"
 for f in cloudflared.env git.env vaultwarden.env; do cp "$runtime/$f" "$pkg/$f"; done
 grep -v '^RESTIC_[0-9][0-9]*_' "$runtime/backup.env" > "$pkg/backup.env"

@@ -1,26 +1,25 @@
-# Encrypted secrets: only deployment config and the public example are versioned
-_secrets/*
-!_secrets/secrets.age
-!_secrets/example/
-!_secrets/example/**
-*.age
-!_secrets/secrets.age
+# Environment
+_env/_secrets/
+_env/*
+!_env/_sample/
+!_env/_sample/**
+!_env/genesis.age
+!_env/secrets.age
 
-# Tests and local credentials
-_test/
+# Tests: keep only the contract
+_test/*
+!_test/README.md
+
+# Plaintext credentials and local artifacts
+*.env
+!_env/_sample/**
 password.txt
 porta.txt
-
-# Generated packages and media
 *.png
 *.zip
 *.tar
 *.tar.gz
 
-# Local/runtime files
-.env
-*.env
-!_secrets/example/**
+# Runtime files
 /run/
 .DS_Store
-_env/

@@ -4,7 +4,7 @@ O loader público é `.source/_main/.bin/vacum`; o wizard canônico é `.source/
 
 ## Comando curto no domínio raiz
 
-O Cloudflare Worker `.source/_main/.worker/index.js` serve a página em `.source/_main/.web/index.html` para navegadores e o loader `.source/_main/.bin/vacum` para curl/wget. Configure a variável `URL` e o domínio `vacum.brazill.org` no Worker.
+O Cloudflare Worker `.source/_main/.cloudflare/index.js` serve a página em `.source/_main/.web/index.html` para navegadores e o loader `.source/_main/.bin/vacum` para curl/wget. Configure a variável `URL` e o domínio `vacum.brazill.org` no Worker.
 
 ```bash
 curl -fsSL https://vacum.brazill.org/ | sh
