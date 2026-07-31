@@ -19,11 +19,14 @@ done
 
 (( EUID == 0 )) || { echo 'execute como root' >&2; exit 1; }
 base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+source_dir=$(realpath -e "$base/../../..")
 secrets_file=${secrets_file:-$base/../../_secrets/secrets.age}
 compose_file=${compose_file:-$base/../docker-compose.yml}
 backup_dir=$base/../.bkp
 for f in genesis_file password_file secrets_file compose_file; do
-  [ -z "${!f}" ] || printf -v "$f" '%s' "$(realpath -e "${!f}")"
+  [ -z "${!f}" ] && continue
+  [[ -e ${!f} ]] || { echo "${f%_file} ausente" >&2; exit 1; }
+  printf -v "$f" '%s' "$(realpath -e "${!f}")"
 done
 . /etc/os-release
 [[ ${ID:-} == ubuntu ]] || { echo 'Ubuntu necessário' >&2; exit 1; }
@@ -57,12 +60,12 @@ ufw default allow outgoing >/dev/null
 ufw allow 22/tcp >/dev/null
 ufw --force enable >/dev/null
 
-install -d -m 755 /etc/ssh/sshd_config.d
+install -d -m 755 /etc/ssh/sshd_config.d /run/sshd
 printf 'Port 22\nPasswordAuthentication no\nPermitRootLogin no\n' \
   > /etc/ssh/sshd_config.d/vacum.conf
 sshd -t
-systemctl enable --now ssh >/dev/null
-systemctl reload ssh >/dev/null
+systemctl enable ssh >/dev/null
+if systemctl is-active --quiet ssh; then systemctl reload ssh >/dev/null; else systemctl start ssh >/dev/null; fi
 
 cd /opt/vaultwarden
 d=$(mktemp -d "${TMPDIR:-/dev/shm}/bootstrap.XXXXXX"); trap 'rm -rf "$d" /run/vaultwarden/restore.sh' EXIT
@@ -116,7 +119,7 @@ install -d -m 755 /usr/local/libexec
 install -m 755 "$base/runtime-config.sh" /usr/local/libexec/vacum-runtime-config
 install -m 755 "$base/secrets-sync.sh" /usr/local/libexec/vacum-secrets-sync
 install -m 755 "$base/git-sync.sh" /usr/local/libexec/vacum-git-sync
-cat > /etc/systemd/system/vacum-runtime-config.service <<'EOF'
+cat > /etc/systemd/system/vacum-runtime-config.service <<EOF
 [Unit]
 Description=Materializa configuração runtime do VACUM
 After=local-fs.target
@@ -124,6 +127,8 @@ Before=docker.service
 
 [Service]
 Type=oneshot
+Environment="VACUM_SOURCE=$source_dir"
+Environment="VACUM_SECRETS=$secrets_file"
 ExecStart=/usr/local/libexec/vacum-runtime-config
 RemainAfterExit=yes
 

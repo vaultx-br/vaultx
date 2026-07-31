@@ -23,3 +23,4 @@ porta.txt
 !_secrets/example/**
 /run/
 .DS_Store
+_env/

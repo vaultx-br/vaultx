@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
-root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
+root=${VACUM_SOURCE:-/opt/vacum-src}
 git_env=${1:-/run/vaultwarden/secrets/git.env}
 [[ -r $git_env ]] || { echo 'git.env ausente' >&2; exit 1; }
 get(){ sed -n "s/^$1=//p" "$git_env" | tail -1; }

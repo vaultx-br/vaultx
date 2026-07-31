@@ -117,3 +117,15 @@ O Bootstrap integrado foi validado na VM com artefatos temporários: Backup SVC 
 Cada destino passa a ser persistido dentro de `secrets.age` como `restic/[nome].env`, contendo `ENABLED`, `REPOSITORY`, `ACCESS_KEY`, `SECRET_KEY` e `PASSWORD`. O materializador atribui índices internos `RESTIC_N_*`, mantendo `RESTIC_N_NAME` para status e alertas.
 
 Não existe mais `RESTIC_N_INITIALIZE`. O job consulta o repositório; somente quando o Restic confirma `repository does not exist`/config ausente ele executa `restic init`. Erros de autenticação, rede ou outro tipo não inicializam nada. O comportamento foi validado com repositório Restic local inicialmente ausente, seguido de snapshot real.
+
+## Validação remota — 2026-07-31
+
+As credenciais de `.source/_env/enviroments.env` autenticaram no repositório remoto. O repositório foi inicializado, o Backup SVC foi recriado com a configuração atual e concluiu um backup real do SQLite e das chaves RSA. O snapshot `700b8e65` foi localizado remotamente, a retenção diária/mensal foi aplicada e `restic check --read-data-subset=1/100` foi aprovado.
+
+## Disaster recovery remoto — Teste 003
+
+Na Oracle VM, o snapshot marcado `da0e7501` foi restaurado por `r2 latest` depois da remoção e recriação vazia do volume Vaultwarden. O SQLite passou em `PRAGMA integrity_check`, o anexo marcador e as chaves RSA foram comparados com a origem, os quatro serviços voltaram, o domínio respondeu HTTP 200 e `vacum check`/`doctor` passaram. RTO medido: 46 segundos; idade do snapshot no início do restore: 145 segundos.
+
+Uma segunda rodada após cadastro/importação restaurou o snapshot `739ca87a`: 1 usuário, 10 itens, 3 pastas e 0 anexos foram preservados. Dump lógico SQLite e chave RSA mantiveram SHA-256 idêntico, com `check`/`doctor` aprovados, RTO de 42 segundos e snapshot com 42 segundos de idade no início. O operador confirmou login e senhas.
+
+A rodada final restaurou o snapshot `75ca86f8` após a inclusão de um anexo real. Registro SQLite, arquivo físico e SHA-256 do anexo foram preservados junto ao usuário, 10 itens, 3 pastas, dump lógico e chave RSA. `check`/`doctor` passaram; RTO foi 42 segundos e a idade do snapshot no início foi 37 segundos.

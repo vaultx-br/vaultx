@@ -14,6 +14,7 @@ install -d -o root -g root -m 700 "$runtime" "$runtime/restic"
 find "$runtime" -mindepth 1 -maxdepth 1 -type f -delete
 find "$runtime/restic" -mindepth 1 -maxdepth 1 -type f -delete
 for f in backup.env cloudflared.env git.env vaultwarden.env; do install -o root -g root -m 600 "$d/$f" "$runtime/$f"; done
+sed -i 's/^CF_TUNNEL_TOKEN=/TUNNEL_TOKEN=/' "$runtime/cloudflared.env"
 n=0
 for file in "${nodes[@]}"; do
   name=${file%.env}; [[ $name =~ ^[a-zA-Z0-9_-]+$ ]] || { echo 'nome de nó Restic inválido' >&2; exit 1; }

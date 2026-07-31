@@ -32,7 +32,7 @@ snapshots(){
       export RESTIC_REPOSITORY="$(get REPOSITORY)" RESTIC_PASSWORD="$(get PASSWORD)"
       export AWS_ACCESS_KEY_ID="$(get ACCESS_KEY)" AWS_SECRET_ACCESS_KEY="$(get SECRET_KEY)"
       name=$(get NAME); name=${name:-$n}
-      t=$(restic snapshots --latest 1 --json | jq -r ".[0].time // empty")
+      t=$(restic snapshots --latest 1 --json | jq -r "max_by(.time).time // empty")
       [ -n "$t" ]
       printf "%s|%s\\n" "$name" "$t"
     done'
@@ -57,7 +57,7 @@ disk_ok(){ [[ $(root df -Pk /opt | awk 'NR==2{print $4}') -ge ${VACUM_MIN_DISK_K
 vaultwarden_healthy(){ local id; id=$(compose ps -q vaultwarden); [[ $(root docker inspect -f '{{.State.Health.Status}}' "$id") == healthy ]]; }
 repo_clean(){ [[ -z $(git -C "$source_dir" status --porcelain) ]]; }
 ufw_active(){ root ufw status | grep -qx 'Status: active'; }
-ssh_secure(){ root sshd -T | grep -qx 'passwordauthentication no' && root sshd -T | grep -qx 'permitrootlogin no'; }
+ssh_secure(){ local config; config=$(root sshd -T); grep -qx 'passwordauthentication no' <<<"$config" && grep -qx 'permitrootlogin no' <<<"$config"; }
 doctor(){
   local failed=0
   verify(){ if "$@"; then echo "VACUM: OK: $1"; else echo "VACUM: FALHA: $1" >&2; failed=1; fi; }

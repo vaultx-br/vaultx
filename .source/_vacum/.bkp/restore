@@ -1,7 +1,16 @@
 #!/bin/sh
 set -eu
-node=${1:?uso: restore NODE [SNAPSHOT]}
+requested=${1:?uso: restore NODE [SNAPSHOT]}
 snapshot=${2:-latest}
+node=
+for n in $(env | sed -n 's/^RESTIC_\([0-9][0-9]*\)_NAME=.*/\1/p' | sort -n); do
+  [ "$(printenv "RESTIC_${n}_NAME" 2>/dev/null || :)" = "$requested" ] || continue
+  [ -z "$node" ] || { echo 'nome de nó Restic duplicado' >&2; exit 1; }
+  node=$n
+done
+if [ -z "$node" ]; then
+  case $requested in *[!0-9]*|'') echo 'nó Restic inexistente' >&2; exit 1;; *) node=$requested;; esac
+fi
 get(){ printenv "RESTIC_${node}_$1" 2>/dev/null || :; }
 [ "$(get ENABLED)" != false ] || { echo 'nó Restic desabilitado' >&2; exit 1; }
 export RESTIC_REPOSITORY="$(get REPOSITORY)" RESTIC_PASSWORD="$(get PASSWORD)"

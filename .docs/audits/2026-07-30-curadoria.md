@@ -235,3 +235,18 @@ A inicialização Restic passou a ocorrer automaticamente somente diante do erro
 O instalador passou a oferecer um menu depois da materialização de `secrets.age` e antes do primeiro `compose up`. O mesmo fluxo está disponível posteriormente em `vacum config`. As opções implementadas são Git, adicionar/remover S3 nomeado, política de backup e ntfy; entradas sensíveis não têm eco. Alterações são gravadas atomicamente, seladas e aplicadas aos serviços, com push retomável pelo timer.
 
 O caminho interativo foi validado em pseudo-TTY adicionando `restic/oracle.env` e alterando hora/minuto/retenção/limite, seguido de verificações nos arquivos resultantes. Valores de política exigem inteiros, hora/minuto respeitam suas faixas e retenção/limite devem ser positivos.
+
+## Inspeção final pré-produção — 2026-07-31
+
+**Parecer: NÃO APROVADO para produção ainda.** A estrutura geral permanece adequada, e sintaxe, testes locais, integridade Git, resolução do Compose e build do Backup SVC passaram. Porém, foram reproduzidos os seguintes bloqueadores:
+
+1. `git-sync.sh` calcula a raiz relativamente ao próprio arquivo. Como o bootstrap o instala em `/usr/local/libexec`, a raiz calculada é `/`, não `/opt/vacum-src`; portanto a sincronização automática falha na VM instalada.
+2. A interface documenta nós Restic nomeados (`vacum restore r2 latest`), mas `restore` procura diretamente `RESTIC_r2_*`; o runtime materializa `RESTIC_1_NAME=r2` e credenciais em `RESTIC_1_*`. O restore por nome falha.
+3. O bootstrap sempre executa `docker compose up -d`. Em uma VM nova, Vaultwarden inicializa o volume; depois disso, o restore recusa corretamente o volume não vazio. Falta um caminho explícito de instalação em modo recuperação, antes da primeira inicialização do Vaultwarden.
+4. Existe configuração de produção em texto aberto no diretório local `.production/`, com permissão observada `644` e fora das regras anteriores de ignore. O diretório foi adicionado ao `.gitignore`; as credenciais devem ser consideradas expostas ao ambiente local e rotacionadas antes da produção.
+5. O instalador e Worker continuam executando o branch mutável `master`, e as imagens continuam sem digest. Isto não impede um piloto controlado, mas impede afirmar instalação reproduzível e cadeia de distribuição endurecida.
+6. Continuam sem validação externa: primeiro snapshot no destino real, restore destrutivo real, reboot da Oracle VM, Tunnel, ntfy e medição RTO/RPO.
+
+Validação executada nesta inspeção: `bash -n`, `sh -n`, `node --check`, testes locais de CLI/backup/restore/Worker, `docker compose config -q` com envs de exemplo, build real da imagem Backup SVC, `git diff --check` e `git fsck --full --no-dangling`. O teste atual de backup apenas verifica ordem textual; não cobre execução, falhas, lock ou integração Restic.
+
+Critério para aval: corrigir os três bloqueadores funcionais, rotacionar os segredos abertos e concluir na Oracle VM uma instalação/recuperação descartável com backup real, restore validado, reboot e `vacum doctor` aprovado.
