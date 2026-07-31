@@ -7,6 +7,14 @@ source_dir=${VACUM_SOURCE:-/opt/vacum-src}
 runtime=${VACUM_RUNTIME:-/run/vaultwarden/secrets}
 expected_services='vaultwarden cloudflared ntfy backup-svc'
 
+banner(){ cat <<'EOF'
+__     ___    ____ _   _ __  __
+\ \   / / \  / ___| | | |  \/  |
+ \ \ / / _ \| |   | | | | |\/| |
+  \ V / ___ \ |___| |_| | |  | |
+   \_/_/   \_\____|\___/|_|  |_|
+EOF
+}
 root(){ if ((EUID)); then sudo "$@"; else "$@"; fi; }
 compose(){ root docker compose -f "$stack" "$@"; }
 need_stack(){ root test -f "$stack" || { echo 'VACUM: nó não instalado; execute vacum install.' >&2; exit 1; }; }
@@ -93,6 +101,7 @@ restore(){
   compose up -d vaultwarden
 }
 menu(){
+  banner >&2
   cat >&2 <<'EOF'
 
 [1] INSTALL  [2] CHECK  [3] STATUS  [4] DOCTOR  [5] BACKUP  [6] TEST  [7] RESTORE  [8] CONFIG  [0] EXIT
@@ -115,8 +124,7 @@ case $cmd in
   config) need_runtime; root "$cmd_dir/config.sh"; root /usr/local/libexec/vacum-secrets-sync ;;
   restore) restore "$@" ;;
   test) bash -n "$cmd_dir"/*.sh "$self"; sh -n "$cmd_dir/../.bkp/backup" "$cmd_dir/../.bkp/restore" "$cmd_dir/../.bkp/entrypoint.sh"; "$cmd_dir/test-cli.sh"; "$cmd_dir/test-backup.sh"; "$cmd_dir/test-restore.sh"; node "$cmd_dir/../../_main/.worker/test-worker.mjs"; echo 'VACUM: TEST OK' ;;
-  help|--help|-h) cat <<'EOF'
-VACUM
+  help|--help|-h) banner; cat <<'EOF'
   vacum install  instala o nó
   vacum check    verifica a instalação sem rede
   vacum status   mostra serviços e último snapshot
