@@ -131,7 +131,7 @@ case $cmd in
     fi
     ;;
   restore) restore "$@" ;;
-  test) bash -n "$cmd_dir"/*.sh "$self"; sh -n "$cmd_dir/../.bkp/backup" "$cmd_dir/../.bkp/restore" "$cmd_dir/../.bkp/entrypoint.sh"; "$cmd_dir/test-cli.sh"; "$cmd_dir/test-backup.sh"; "$cmd_dir/test-restore.sh"; "$cmd_dir/test-genesis.sh"; "$cmd_dir/test-config-signups.sh"; "$cmd_dir/test-sync-source.sh"; node "$cmd_dir/../../_main/.cloudflare/test-worker.mjs"; echo 'VACUM: TEST OK' ;;
+  test) bash -n "$cmd_dir"/*.sh "$self"; sh -n "$cmd_dir/../.bkp/backup" "$cmd_dir/../.bkp/restore" "$cmd_dir/../.bkp/entrypoint.sh"; "$cmd_dir/test-cli.sh"; "$cmd_dir/test-backup.sh"; "$cmd_dir/test-restore.sh"; "$cmd_dir/test-genesis.sh"; "$cmd_dir/test-config-signups.sh"; "$cmd_dir/test-sync-source.sh"; if command -v node >/dev/null; then node "$cmd_dir/../../_main/.cloudflare/test-worker.mjs"; else echo 'VACUM: worker test ignorado (node ausente)'; fi; echo 'VACUM: TEST OK' ;;
   help|--help|-h) banner; cat <<'EOF'
   vacum install  instala o nó
   vacum check    verifica a instalação sem rede
