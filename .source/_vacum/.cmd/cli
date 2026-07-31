@@ -8,11 +8,12 @@ runtime=${VACUM_RUNTIME:-/run/vaultwarden/secrets}
 expected_services='vaultwarden cloudflared ntfy backup-svc'
 
 banner(){ cat <<'EOF'
-__     ___    ____ _   _ __  __
-\ \   / / \  / ___| | | |  \/  |
- \ \ / / _ \| |   | | | | |\/| |
-  \ V / ___ \ |___| |_| | |  | |
-   \_/_/   \_\____|\___/|_|  |_|
+██╗   ██╗ █████╗  ██████╗██╗   ██╗███╗   ███╗
+██║   ██║██╔══██╗██╔════╝██║   ██║████╗ ████║
+██║   ██║███████║██║     ██║   ██║██╔████╔██║
+╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║╚██╔╝██║
+ ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝██║ ╚═╝ ██║
+  ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝
 EOF
 }
 root(){ if ((EUID)); then sudo "$@"; else "$@"; fi; }
@@ -104,7 +105,9 @@ menu(){
   banner >&2
   cat >&2 <<'EOF'
 
-[1] INSTALL  [2] CHECK  [3] STATUS  [4] DOCTOR  [5] BACKUP  [6] TEST  [7] RESTORE  [8] CONFIG  [0] EXIT
+[1] INSTALL    [4] DOCTOR    [7] RESTORE
+[2] CHECK      [5] BACKUP    [8] CONFIG
+[3] STATUS     [6] TEST      [0] EXIT
 EOF
   printf '> ' >&2; IFS= read -r choice </dev/tty
   case $choice in
